@@ -26,13 +26,24 @@ void setup() {
   Serial.begin(115200);
   delay(100);
 
+  Serial.println("=== SKICC Wildlife Tracker ===");
+  Serial.println("Initializing...");
+
+  // Set WiFi mode first
   WiFi.mode(WIFI_STA);
-  WiFi.disconnect(false, true); // Turn off WiFi to save power
+  
+  // Set to channel 1 (MUST match server channel)
+  wifi_set_channel(1);
+  delay(100);
+
+  // Disconnect WiFi to save power and avoid interference
+  WiFi.disconnect(false, true);
   delay(200);
 
+  // Initialize ESP-NOW
   if (esp_now_init() != 0) {
     Serial.println("❌ ESP-NOW Init Failed");
-    return;
+    while(1);  // Halt if ESP-NOW fails
   }
 
   esp_now_set_self_role(ESP_NOW_ROLE_CONTROLLER);
@@ -40,9 +51,10 @@ void setup() {
   esp_now_add_peer(broadcastAddress, ESP_NOW_ROLE_SLAVE, 1, NULL, 0);
 
   strcpy(msg.name, DEVICE_NAME);
-  Serial.println("=== SKICC Wildlife Tracker ===");
+  Serial.println("✅ ESP-NOW Initialized");
   Serial.println("📡 Broadcasting: " + String(DEVICE_NAME));
-  Serial.println("Interval: " + String(BROADCAST_INTERVAL) + "ms");
+  Serial.println("Channel: 1 | Interval: " + String(BROADCAST_INTERVAL) + "ms");
+  Serial.println("");
 }
 
 void loop() {

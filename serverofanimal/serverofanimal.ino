@@ -120,7 +120,24 @@ void setup() {
   pinMode(SWITCH, INPUT_PULLUP);
   digitalWrite(BUZZER, LOW);
 
-  // Connect to WiFi
+  // 🔴 CRITICAL: Set WiFi mode FIRST, before any ESP-NOW operations
+  WiFi.mode(WIFI_STA);
+  delay(100);
+
+  // Initialize ESP-NOW BEFORE WiFi connection
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("❌ ESP-NOW Init Failed");
+    return;
+  }
+  
+  Serial.println("✅ ESP-NOW Initialized");
+  esp_now_register_recv_cb(OnDataRecv);
+  
+  // Set channel to match animal device (channel 1)
+  esp_now_set_channel(1, NULL);
+  delay(100);
+  
+  // Now connect to WiFi for API communication
   Serial.print("📡 Connecting to WiFi: ");
   Serial.println(ssid);
   
@@ -138,29 +155,18 @@ void setup() {
     Serial.print("IP: ");
     Serial.println(WiFi.localIP());
   } else {
-    Serial.println("\n❌ WiFi Connection Failed");
-    return;
+    Serial.println("\n⚠️ WiFi Connection Failed - ESP-NOW Still Active");
   }
 
-  WiFi.mode(WIFI_STA);
-
-  // Initialize ESP-NOW
-  if (esp_now_init() != ESP_OK) {
-    Serial.println("❌ ESP-NOW Init Failed");
-    return;
-  }
-
-  esp_now_register_recv_cb(OnDataRecv);
-  Serial.println("✅ ESP-NOW Initialized");
   Serial.println("📍 Waiting for animals...");
 }
 
 void loop() {
-  // Keep WiFi connection alive
+  // Keep WiFi connection alive (but don't interfere with ESP-NOW)
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("⚠️ WiFi disconnected, reconnecting...");
+    delay(100);  // Small delay before attempting reconnect
     WiFi.reconnect();
   }
   
-  delay(100);
+  delay(50);  // Reduced delay to ensure ESP-NOW responsiveness
 }
