@@ -132,9 +132,6 @@ void setup() {
   
   Serial.println("✅ ESP-NOW Initialized");
   esp_now_register_recv_cb(OnDataRecv);
-  
-  // Set channel to match animal device (channel 1)
-  esp_now_set_channel(1, NULL);
   delay(100);
   
   // Now connect to WiFi for API communication
