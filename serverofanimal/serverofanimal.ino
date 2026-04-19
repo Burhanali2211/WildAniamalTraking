@@ -1,123 +1,118 @@
 #include <WiFi.h>
-#include <esp_now.h>
+#include <WebServer.h>
 #include <HTTPClient.h>
 
+// WiFi Credentials
 const char* ssid = "Faheem";
 const char* password = "12345678";
-const char* serverUrl = "https://wild-aniamal-traking.vercel.app/api/update";
 
-// ⚠️ DEBUG MODE: Set to true to disable WiFi and test ESP-NOW communication only
-#define ESPNOW_TEST_MODE false
+// Vercel API endpoint
+const char* vercelAPI = "https://wild-aniamal-traking.vercel.app/api/update";
+const int SEND_TIMEOUT = 30000;
+
+// Web server on port 8080
+WebServer server(8080);
 
 #define BUZZER 5
 #define SWITCH 0
-#define SEND_TIMEOUT 30000  // 30 seconds max for HTTP request
-
-typedef struct {
-  char name[32];
-  unsigned long timestamp;
-} Message;
 
 unsigned long lastServerUpdate = 0;
-const unsigned long MIN_UPDATE_INTERVAL = 1000; // Minimum 1 second between updates
+const unsigned long MIN_UPDATE_INTERVAL = 1000;
 
-// Broadcast MAC address for receiving from unknown peers
-uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-
-// ================= RSSI TO ZONE MAPPING =================
-String getZoneFromRSSI(int rssi) {
-  if (rssi > -50) return "SKICC_MainHall";
-  if (rssi > -60) return "SKICC_NorthLawn";
-  if (rssi > -70) return "SKICC_SouthLawn";
-  if (rssi > -80) return "SKICC_Parking";
-  return "SKICC_Lakeside";
-}
-
-// ================= SEND TO SERVER WITH RETRY =================
-bool sendToServer(String name, int rssi) {
-  if (ESPNOW_TEST_MODE) {
-    return false;  // Don't send to server in test mode
-  }
-  
+// ================= SEND TO VERCEL API =================
+bool sendToVercelAPI(String animal, String zone) {
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("❌ WiFi not connected");
+    Serial.println("❌ WiFi not connected - cannot send to API");
     return false;
   }
 
-  // Rate limiting: don't send too frequently
   unsigned long now = millis();
   if (now - lastServerUpdate < MIN_UPDATE_INTERVAL) {
-    return false;
+    return false;  // Rate limiting
   }
 
   HTTPClient http;
   http.setConnectTimeout(SEND_TIMEOUT);
   
-  if (!http.begin(serverUrl)) {
+  if (!http.begin(vercelAPI)) {
     Serial.println("❌ HTTP begin failed");
     return false;
   }
 
   http.addHeader("Content-Type", "application/json");
 
-  String zone = getZoneFromRSSI(rssi);
-  String json = "{\"animal\":\"" + name + "\",\"zone\":\"" + zone + "\"}";
+  String json = "{\"animal\":\"" + animal + "\",\"zone\":\"" + zone + "\"}";
 
-  Serial.print("📤 Sending: ");
+  Serial.print("📤 Forwarding to Vercel: ");
   Serial.println(json);
 
   int httpResponseCode = http.POST(json);
   bool success = (httpResponseCode == 200);
 
-  Serial.print("📨 Response: ");
+  Serial.print("📨 Vercel Response: ");
   Serial.print(httpResponseCode);
   Serial.print(" | Animal: ");
-  Serial.print(name);
+  Serial.print(animal);
   Serial.print(" | Zone: ");
   Serial.print(zone);
-  Serial.print(" | RSSI: ");
-  Serial.print(rssi);
   Serial.println(success ? " ✅" : " ❌");
 
   http.end();
   
   if (success) {
     lastServerUpdate = now;
+    
+    // 🔊 Buzzer alert
+    if (digitalRead(SWITCH) == HIGH) {
+      digitalWrite(BUZZER, HIGH);
+      delay(100);
+      digitalWrite(BUZZER, LOW);
+      delay(100);
+      digitalWrite(BUZZER, HIGH);
+      delay(100);
+      digitalWrite(BUZZER, LOW);
+    }
   }
   
   return success;
 }
 
-// ================= ESP-NOW CALLBACK =================
-void OnDataRecv(const esp_now_recv_info *info, const uint8_t *incomingData, int len) {
-  Message msg;
-  memcpy(&msg, incomingData, sizeof(msg));
-
-  String name = String(msg.name);
-  int rssi = info->rx_ctrl->rssi;
-
-  Serial.println("");
-  Serial.print("✅ ESP-NOW RECEIVED!");
-  Serial.print(" | Animal: ");
-  Serial.print(name);
-  Serial.print(" | RSSI: ");
-  Serial.print(rssi);
-  Serial.print(" | Data Length: ");
-  Serial.println(len);
-
-  // 🔊 Buzzer alert
-  if (digitalRead(SWITCH) == HIGH) {
-    digitalWrite(BUZZER, HIGH);
-    delay(100);
-    digitalWrite(BUZZER, LOW);
-    delay(100);
-    digitalWrite(BUZZER, HIGH);
-    delay(100);
-    digitalWrite(BUZZER, LOW);
+// ================= HTTP ENDPOINT TO RECEIVE FROM ANIMAL =================
+void handleLocationUpdate() {
+  if (server.method() != HTTP_POST) {
+    server.send(405, "text/plain", "Method Not Allowed");
+    return;
   }
 
-  // 🌐 Send to server
-  sendToServer(name, rssi);
+  String body = server.arg("plain");
+  Serial.println("");
+  Serial.print("🐾 Received from Animal: ");
+  Serial.println(body);
+
+  // Parse JSON (simple parsing)
+  // Expected: {"animal":"Billi_Meow","zone":"SKICC_MainHall"}
+  int animalStart = body.indexOf("\"animal\":\"") + 10;
+  int animalEnd = body.indexOf("\"", animalStart);
+  String animal = body.substring(animalStart, animalEnd);
+
+  int zoneStart = body.indexOf("\"zone\":\"") + 8;
+  int zoneEnd = body.indexOf("\"", zoneStart);
+  String zone = body.substring(zoneStart, zoneEnd);
+
+  Serial.print("✅ Parsed - Animal: ");
+  Serial.print(animal);
+  Serial.print(" | Zone: ");
+  Serial.println(zone);
+
+  // Forward to Vercel API
+  bool success = sendToVercelAPI(animal, zone);
+
+  // Send response back to animal
+  if (success) {
+    server.send(200, "application/json", "{\"status\":\"ok\"}");
+  } else {
+    server.send(500, "application/json", "{\"status\":\"error\"}");
+  }
 }
 
 // ================= SETUP =================
@@ -125,78 +120,57 @@ void setup() {
   Serial.begin(115200);
   delay(100);
 
-  Serial.println("");
-  Serial.println("=== SKICC Wildlife Server ===");
+  Serial.println("\n=== SKICC Wildlife Server (Gateway) ===");
   Serial.println("Initializing...");
 
   pinMode(BUZZER, OUTPUT);
   pinMode(SWITCH, INPUT_PULLUP);
   digitalWrite(BUZZER, LOW);
 
-  // 🔴 CRITICAL: Set WiFi mode FIRST, before any ESP-NOW operations
-  WiFi.mode(WIFI_STA);
-  delay(100);
-  
-  // Print server info (will have IP after WiFi connects)
-  Serial.print("📍 Server MAC: ");
-  Serial.println(WiFi.macAddress());
+  // Connect to WiFi
+  Serial.print("📡 Connecting to WiFi: ");
+  Serial.println(ssid);
 
-  // Initialize ESP-NOW BEFORE WiFi connection
-  if (esp_now_init() != ESP_OK) {
-    Serial.println("❌ ESP-NOW Init Failed");
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+    delay(500);
+    Serial.print(".");
+    attempts++;
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\n✅ WiFi Connected");
+    Serial.print("🌐 Server IP: ");
+    Serial.println(WiFi.localIP());
+    
+    Serial.print("📶 WiFi Channel: ");
+    Serial.println(WiFi.channel());
+  } else {
+    Serial.println("\n❌ WiFi Connection Failed!");
     return;
   }
-  
-  Serial.println("✅ ESP-NOW Initialized");
-  esp_now_register_recv_cb(OnDataRecv);
-  
-  // Try receiving without explicit peer registration
-  // This allows receiving broadcasts from any device
-  delay(100);
-  
-  // Now connect to WiFi for API communication (skip if testing ESP-NOW only)
-  if (ESPNOW_TEST_MODE) {
-    Serial.println("🧪 TEST MODE: WiFi disabled for pure ESP-NOW testing");
-    Serial.println("   (Set ESPNOW_TEST_MODE to false to enable WiFi)");
-  } else {
-    Serial.print("📡 Connecting to WiFi: ");
-    Serial.println(ssid);
 
-    WiFi.setAutoReconnect(true);
-    WiFi.setScanMethod(WIFI_FAST_SCAN);
-    WiFi.begin(ssid, password);
-    
-    int attempts = 0;
-    while (WiFi.status() != WL_CONNECTED && attempts < 20) {
-      delay(500);
-      Serial.print(".");
-      attempts++;
-    }
+  // Start HTTP server
+  server.on("/api/location", handleLocationUpdate);
+  server.begin();
 
-    if (WiFi.status() == WL_CONNECTED) {
-      Serial.println("\n✅ WiFi Connected");
-      Serial.print("🌐 Server IP: ");
-      Serial.println(WiFi.localIP());
-      
-      // Debug: Show WiFi channel
-      uint8_t channel = WiFi.channel();
-      Serial.print("📶 WiFi Channel: ");
-      Serial.print(channel);
-      Serial.println(" (ESP-NOW should work across channels)");
-    } else {
-      Serial.println("\n⚠️ WiFi Connection Failed - ESP-NOW Still Active");
-    }
-  }
-
-  Serial.println("📍 Waiting for animals...");
+  Serial.print("🌐 HTTP Server started on port 8080");
+  Serial.println("📍 Ready to receive from animals...");
+  Serial.println("");
 }
 
 void loop() {
-  // Keep WiFi connection alive (but don't interfere with ESP-NOW)
+  // Handle incoming HTTP requests
+  server.handleClient();
+
+  // Keep WiFi connection alive
   if (WiFi.status() != WL_CONNECTED) {
-    delay(100);  // Small delay before attempting reconnect
+    Serial.println("⚠️ WiFi disconnected, reconnecting...");
     WiFi.reconnect();
   }
-  
-  delay(50);  // Reduced delay to ensure ESP-NOW responsiveness
+
+  delay(10);
 }
