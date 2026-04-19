@@ -6,7 +6,7 @@ global.animalTimestamps = global.animalTimestamps || {};
 
 const ANIMAL_TIMEOUT = 10000; // 10 seconds
 
-export default function handler(req, res) {
+export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -25,30 +25,11 @@ export default function handler(req, res) {
 
   if (req.method === "GET") {
     try {
-      const now = Date.now();
-      const result = {};
-      
-      // Sync with global store
-      global.animalStore = global.animalStore || {};
-      global.animalTimestamps = global.animalTimestamps || {};
-      
-      // Cleanup stale animals
-      for (const animal in global.animalStore) {
-        const timestamp = global.animalTimestamps[animal] || 0;
-        const age = now - timestamp;
-        
-        if (age > ANIMAL_TIMEOUT) {
-          console.log(`🗑️ Expiring stale animal: ${animal} (${Math.floor(age/1000)}s old)`);
-          delete global.animalStore[animal];
-          delete global.animalTimestamps[animal];
-        } else {
-          result[animal] = global.animalStore[animal];
-        }
-      }
-      
+      // Get active animals from Redis (or memory fallback)
+      const result = await Storage.getAll();
       const count = Object.keys(result).length;
+      
       console.log(`📤 Sending ${count} active animals`);
-
       return res.status(200).json(result);
 
     } catch (error) {

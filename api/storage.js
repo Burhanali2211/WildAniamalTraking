@@ -1,108 +1,76 @@
-// Shared data storage for all API routes
-// Timeout: Clear animals not updated within 10 seconds
+import { Redis } from '@upstash/redis';
 
-let dataStore = {};
-let updateTimestamps = {};
+// Initialize Redis if credentials exist, otherwise fallback to memory
+const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
+  ? new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    })
+  : null;
 
-const ANIMAL_TIMEOUT = 10000; // 10 seconds (animals send every 3 seconds)
+const ANIMAL_TIMEOUT = 10000; // 10 seconds
 
-const Storage = {
-  // Set animal data
-  set: (animal, zone) => {
-    dataStore[animal] = zone;
-    updateTimestamps[animal] = Date.now();
-    console.log(`💾 Storage.set() - Stored ${animal} → ${zone}. Total animals now: ${Object.keys(dataStore).length}`);
-    console.log(`📦 Current dataStore:`, dataStore);
+// Memory fallback for local development or missing Redis
+let memoryStore = {};
+let memoryTimestamps = {};
+
+export const Storage = {
+  async set(animal, zone) {
+    if (redis) {
+      await redis.hset('animals', { [animal]: zone });
+      await redis.hset('timestamps', { [animal]: Date.now() });
+    } else {
+      memoryStore[animal] = zone;
+      memoryTimestamps[animal] = Date.now();
+    }
   },
 
-  // Get all animal data (only active ones)
-  getAll: () => {
-    Storage.cleanupStaleAnimals();
-    const count = Object.keys(dataStore).length;
-    console.log(`📦 Storage.getAll() called - returning ${count} animals:`, dataStore);
-    return { ...dataStore };
-  },
-
-  // Get single animal
-  get: (animal) => {
-    Storage.cleanupStaleAnimals();
-    return dataStore[animal] || null;
-  },
-
-  // Remove animals not updated recently
-  cleanupStaleAnimals: () => {
+  async getAll() {
     const now = Date.now();
-    const staleAnimals = [];
+    let stores = {};
+    let timestamps = {};
 
-    for (const animal in updateTimestamps) {
-      if (now - updateTimestamps[animal] > ANIMAL_TIMEOUT) {
-        staleAnimals.push(animal);
+    if (redis) {
+      try {
+        stores = await redis.hgetall('animals') || {};
+        timestamps = await redis.hgetall('timestamps') || {};
+      } catch (err) {
+        console.error('Redis error fallback to memory:', err);
+        stores = { ...memoryStore };
+        timestamps = { ...memoryTimestamps };
+      }
+    } else {
+      stores = { ...memoryStore };
+      timestamps = { ...memoryTimestamps };
+    }
+
+    const active = {};
+    const expired = [];
+
+    for (const [animal, zone] of Object.entries(stores)) {
+      const ts = parseInt(timestamps[animal]) || 0;
+      if (now - ts > ANIMAL_TIMEOUT) {
+        expired.push(animal);
+      } else {
+        active[animal] = zone;
       }
     }
 
-    staleAnimals.forEach(animal => {
-      delete dataStore[animal];
-      delete updateTimestamps[animal];
-      console.log(`🗑️ Removed stale animal: ${animal}`);
-    });
-
-    return staleAnimals;
-  },
-
-  // Get with timestamps
-  getAllWithTimestamps: () => {
-    Storage.cleanupStaleAnimals();
-    const result = {};
-    for (const animal in dataStore) {
-      result[animal] = {
-        zone: dataStore[animal],
-        lastUpdated: new Date(updateTimestamps[animal]).toISOString()
-      };
+    // Cleanup expired in background
+    if (expired.length > 0) {
+      try {
+        if (redis) {
+          await redis.hdel('animals', ...expired);
+          await redis.hdel('timestamps', ...expired);
+        } else {
+          expired.forEach(a => {
+            delete memoryStore[a];
+            delete memoryTimestamps[a];
+          });
+        }
+      } catch (e) {}
     }
-    return result;
-  },
 
-  // Clear all data
-  clear: () => {
-    dataStore = {};
-    updateTimestamps = {};
-    console.log('🗑️ All animal data cleared');
-  },
-
-  // Delete specific animal
-  delete: (animal) => {
-    delete dataStore[animal];
-    delete updateTimestamps[animal];
-    console.log(`🗑️ Deleted animal: ${animal}`);
-  },
-
-  // Check if animal exists
-  has: (animal) => {
-    Storage.cleanupStaleAnimals();
-    return animal in dataStore;
-  },
-
-  // Get count
-  count: () => {
-    Storage.cleanupStaleAnimals();
-    return Object.keys(dataStore).length;
-  },
-
-  // Get all stale animals (for debugging)
-  getStaleAnimals: () => {
-    const now = Date.now();
-    const stale = [];
-    for (const animal in updateTimestamps) {
-      if (now - updateTimestamps[animal] > ANIMAL_TIMEOUT) {
-        stale.push({
-          animal,
-          lastUpdated: new Date(updateTimestamps[animal]).toISOString(),
-          ageSeconds: Math.floor((now - updateTimestamps[animal]) / 1000)
-        });
-      }
-    }
-    return stale;
+    return active;
   }
 };
-
-export { dataStore, Storage, ANIMAL_TIMEOUT };
