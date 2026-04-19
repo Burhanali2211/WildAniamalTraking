@@ -1,12 +1,10 @@
 import { Redis } from '@upstash/redis';
 
-// Initialize Redis if credentials exist, otherwise fallback to memory
-const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
-  ? new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN,
-    })
-  : null;
+// Initialize Redis with provided credentials
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL || "https://certain-shrimp-67943.upstash.io",
+  token: process.env.UPSTASH_REDIS_REST_TOKEN || "gQAAAAAAAQlnAAIncDE3Y2NlYTNlZTllYTU0OTZhOWI1MTQwYmQzNGM5MmU5NXAxNjc5NDM",
+});
 
 const ANIMAL_TIMEOUT = 10000; // 10 seconds
 
