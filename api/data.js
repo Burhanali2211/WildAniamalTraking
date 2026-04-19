@@ -1,5 +1,8 @@
 import { Storage } from './storage.js';
 
+// Persistent global store during runtime
+const ANIMAL_TIMEOUT = 10000; // 10 seconds
+
 export default function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -19,15 +22,30 @@ export default function handler(req, res) {
     try {
       console.log('🔄 GET /api/data - Fetching animals...');
       
-      // Get clean data (removes stale animals automatically)
-      const animalData = Storage.getAll();
-      const animalCount = Object.keys(animalData).length;
+      // Use global store to get animals
+      global.animalStore = global.animalStore || {};
+      global.animalTimestamps = global.animalTimestamps || {};
       
-      console.log(`✅ Sending data: ${animalCount} active animal(s)`);
-      console.log(`📤 Response data:`, animalData);
+      const now = Date.now();
+      const result = {};
+      
+      // Clean up stale animals
+      for (const animal in global.animalStore) {
+        const age = now - (global.animalTimestamps[animal] || 0);
+        
+        if (age > ANIMAL_TIMEOUT) {
+          console.log(`🗑️ Removing stale animal: ${animal} (age: ${Math.floor(age/1000)}s)`);
+          delete global.animalStore[animal];
+          delete global.animalTimestamps[animal];
+        } else {
+          result[animal] = global.animalStore[animal];
+        }
+      }
+      
+      const animalCount = Object.keys(result).length;
+      console.log(`✅ Returning ${animalCount} active animals:`, result);
 
-      // Only return active animals
-      res.status(200).json(animalData);
+      res.status(200).json(result);
 
     } catch (error) {
       console.error('❌ Error sending data:', error.message);

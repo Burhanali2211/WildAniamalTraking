@@ -1,5 +1,12 @@
 import { Storage } from './storage.js';
 
+// Global store to hold animals during runtime
+// This is a temporary solution - in production use Vercel KV or database
+global.animalStore = global.animalStore || {};
+global.animalTimestamps = global.animalTimestamps || {};
+
+const ANIMAL_TIMEOUT = 10000; // 10 seconds
+
 export default function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -39,11 +46,16 @@ export default function handler(req, res) {
         return;
       }
 
-      // Update storage with timestamp
-      Storage.set(animal, zone);
+      // Store in global object
+      global.animalStore[animal] = zone;
+      global.animalTimestamps[animal] = Date.now();
 
       console.log(`✅ Updated: ${animal} → ${zone}`);
-      console.log(`📦 Active animals: ${Storage.count()}`);
+      console.log(`📦 Global store now contains:`, global.animalStore);
+      console.log(`Active animals: ${Object.keys(global.animalStore).length}`);
+
+      // Also update via Storage module for redundancy
+      Storage.set(animal, zone);
 
       res.status(200).json({ 
         status: "ok",
