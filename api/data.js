@@ -1,4 +1,4 @@
-import { dataStore } from './storage.js';
+import { Storage } from './storage.js';
 
 export default function handler(req, res) {
   // Enable CORS
@@ -17,19 +17,14 @@ export default function handler(req, res) {
 
   if (req.method === "GET") {
     try {
-      const animalCount = Object.keys(dataStore).length;
+      // Get clean data (removes stale animals automatically)
+      const animalData = Storage.getAll();
+      const animalCount = Object.keys(animalData).length;
       
-      console.log(`✅ Sending data: ${animalCount} animal(s)`);
-      console.log(`📦 Current Store:`, dataStore);
+      console.log(`✅ Sending data: ${animalCount} active animal(s)`);
 
-      res.status(200).json({
-        ...dataStore,
-        _metadata: {
-          count: animalCount,
-          timestamp: new Date().toISOString(),
-          zones: Array.from(new Set(Object.values(dataStore)))
-        }
-      });
+      // Only return active animals
+      res.status(200).json(animalData);
 
     } catch (error) {
       console.error('❌ Error sending data:', error.message);

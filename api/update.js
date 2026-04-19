@@ -1,4 +1,4 @@
-import { dataStore } from './storage.js';
+import { Storage } from './storage.js';
 
 export default function handler(req, res) {
   // Enable CORS
@@ -39,11 +39,11 @@ export default function handler(req, res) {
         return;
       }
 
-      // Update storage
-      dataStore[animal] = zone;
+      // Update storage with timestamp
+      Storage.set(animal, zone);
 
       console.log(`✅ Updated: ${animal} → ${zone}`);
-      console.log(`📦 Current animals: ${Object.keys(dataStore).length}`);
+      console.log(`📦 Active animals: ${Storage.count()}`);
 
       res.status(200).json({ 
         status: "ok",
