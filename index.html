@@ -5,86 +5,304 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
 
   <style>
-    body {
+    * {
       margin: 0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto;
-      background: #f4f6f8;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: #1f2933;
+      min-height: 100vh;
     }
 
     header {
-      background: #ffffff;
-      border-bottom: 1px solid #ddd;
-      padding: 12px 20px;
-      font-size: 18px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px 30px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    header h1 {
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 20px;
+      font-size: 13px;
       font-weight: 600;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ef4444;
+      animation: pulse 2s infinite;
+    }
+
+    .status-dot.connected {
+      background: #10b981;
+      animation: none;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
     }
 
     .container {
       display: grid;
-      grid-template-columns: 2fr 1fr;
-      gap: 12px;
-      padding: 12px;
+      grid-template-columns: 2.5fr 1fr;
+      gap: 20px;
+      padding: 20px 30px;
+      margin-bottom: 30px;
+    }
+
+    @media (max-width: 1200px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
     }
 
     #map {
-      height: 70vh;
-      border: 1px solid #ddd;
-      border-radius: 6px;
+      height: 65vh;
+      border-radius: 12px;
       background: #fff;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      overflow: hidden;
+      border: 2px solid rgba(255,255,255,0.1);
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
     }
 
     .panel {
-      background: #ffffff;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      padding: 10px;
-      overflow: auto;
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      border: 2px solid rgba(255,255,255,0.1);
+      overflow: hidden;
     }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
+    .panel-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 15px;
+      color: #667eea;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 15px;
+    }
+
+    .stat-box {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 15px;
+      border-radius: 10px;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      opacity: 0.9;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .animals-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 45vh;
+      overflow-y: auto;
+    }
+
+    .animal-badge {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 12px;
+      border-radius: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+      transition: transform 0.2s, box-shadow 0.2s;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+    }
+
+    .animal-badge:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(102, 126, 234, 0.3);
+    }
+
+    .animal-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+    }
+
+    .animal-name {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .animal-zone {
+      font-size: 12px;
+      opacity: 0.9;
+    }
+
+    .animal-time {
+      font-size: 11px;
+      opacity: 0.8;
+    }
+
+    .zone-badge {
+      background: rgba(255,255,255,0.3);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .no-data {
+      text-align: center;
+      padding: 30px 15px;
+      color: #999;
       font-size: 14px;
     }
 
-    th {
-      text-align: left;
-      padding: 8px;
-      border-bottom: 1px solid #ccc;
-      font-weight: 600;
-      background: #fafafa;
+    .connection-log {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 11px;
+      font-family: 'Courier New', monospace;
+      max-height: 150px;
+      overflow-y: auto;
+      border-left: 3px solid #667eea;
     }
 
-    td {
-      padding: 8px;
-      border-bottom: 1px solid #eee;
-    }
-
-    tr:hover {
-      background: #f9fafb;
-    }
-
-    .zone {
-      font-weight: 500;
-    }
-
-    .status {
-      font-size: 13px;
+    .log-entry {
+      padding: 4px 0;
       color: #555;
-      margin-bottom: 8px;
     }
 
-    .active {
-      color: #0a7f3f;
-      font-weight: 600;
+    .log-entry.success {
+      color: #10b981;
     }
 
-    .alert {
-      color: #b91c1c;
+    .log-entry.error {
+      color: #ef4444;
+    }
+
+    .refresh-btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
       font-weight: 600;
+      font-size: 12px;
+      transition: transform 0.2s;
+      width: 100%;
+    }
+
+    .refresh-btn:hover {
+      transform: scale(1.02);
+    }
+
+    .refresh-btn:active {
+      transform: scale(0.98);
+    }
+
+    .refresh-btn.loading {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
+    /* Scrollbar styling */
+    .animals-list::-webkit-scrollbar,
+    .connection-log::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .animals-list::-webkit-scrollbar-track,
+    .connection-log::-webkit-scrollbar-track {
+      background: #f0f0f0;
+      border-radius: 10px;
+    }
+
+    .animals-list::-webkit-scrollbar-thumb,
+    .connection-log::-webkit-scrollbar-thumb {
+      background: #667eea;
+      border-radius: 10px;
+    }
+
+    .animals-list::-webkit-scrollbar-thumb:hover,
+    .connection-log::-webkit-scrollbar-thumb:hover {
+      background: #764ba2;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .animal-badge {
+      animation: slideIn 0.3s ease-out;
     }
 
   </style>
@@ -93,126 +311,386 @@
 <body>
 
 <header>
-  Wildlife Monitoring – SKICC Zones
+  <h1>
+    <i class="fas fa-map-location-dot"></i>
+    Wildlife Monitoring Dashboard
+  </h1>
+  <div class="header-right">
+    <div class="status-indicator">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">Connecting...</span>
+    </div>
+  </div>
 </header>
 
 <div class="container">
-
   <div id="map"></div>
 
-  <div class="panel">
-    <div class="status" id="status">Connecting...</div>
+  <div class="sidebar">
+    <div class="panel">
+      <div class="panel-title">
+        <i class="fas fa-chart-simple"></i> Quick Stats
+      </div>
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-value" id="animalCount">0</div>
+          <div class="stat-label">Animals</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value" id="zoneCount">0</div>
+          <div class="stat-label">Zones</div>
+        </div>
+      </div>
+      <button class="refresh-btn" id="refreshBtn" onclick="manualRefresh()">
+        <i class="fas fa-sync"></i> Refresh Now
+      </button>
+    </div>
 
-    <table>
-      <thead>
-        <tr>
-          <th>Animal</th>
-          <th>Zone</th>
-          <th>Last Seen</th>
-        </tr>
-      </thead>
-      <tbody id="tableBody"></tbody>
-    </table>
+    <div class="panel">
+      <div class="panel-title">
+        <i class="fas fa-paw"></i> Active Animals
+      </div>
+      <div class="animals-list" id="animalsList">
+        <div class="no-data">No animals detected yet...</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">
+        <i class="fas fa-terminal"></i> Connection Log
+      </div>
+      <div class="connection-log" id="connectionLog">
+        <div class="log-entry">Initializing...</div>
+      </div>
+    </div>
   </div>
-
 </div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
-  // 📍 SKICC center
-  const map = L.map('map').setView([34.0837, 74.8605], 17);
-
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-
-  // 🔹 Zones (realistic layout)
-  const zones = {
-    "SKICC_MainHall": [34.0837, 74.8605],
-    "SKICC_NorthLawn": [34.0845, 74.8604],
-    "SKICC_SouthLawn": [34.0829, 74.8606],
-    "SKICC_Parking": [34.0833, 74.8596],
-    "SKICC_Lakeside": [34.0841, 74.8615]
+  // ==================== CONFIG ====================
+  const CONFIG = {
+    API_ENDPOINT: '/api/data',
+    FETCH_INTERVAL: 3000,
+    REQUEST_TIMEOUT: 5000,
+    MAX_RETRIES: 3,
+    RETRY_DELAY: 1000,
+    LOG_MAX_ENTRIES: 20
   };
 
-  let markers = {};
-  let lastData = {};
+  // ==================== STATE ====================
+  let appState = {
+    connected: false,
+    animalData: {},
+    lastUpdateTime: null,
+    retryCount: 0,
+    fetchInProgress: false,
+    markers: {},
+    timestamps: {}
+  };
 
-  // Draw zones
-  Object.entries(zones).forEach(([zone, coord]) => {
-    L.circle(coord, {
-      radius: 40,
-      color: "#2563eb",
-      weight: 1
-    }).addTo(map).bindPopup(zone);
-  });
+  // ==================== LOGGING ====================
+  class Logger {
+    static logs = [];
 
-  async function fetchData() {
-    const status = document.getElementById("status");
+    static add(message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString();
+      const entry = `[${timestamp}] ${message}`;
+      this.logs.unshift(entry);
+      
+      if (this.logs.length > CONFIG.LOG_MAX_ENTRIES) {
+        this.logs.pop();
+      }
 
-    try {
-      status.textContent = "Updating...";
-      status.className = "status";
+      this.render(type);
+      console.log(`${type.toUpperCase()}: ${message}`);
+    }
 
-      const res = await fetch("/api/data");
-      const data = await res.json();
-
-      status.textContent = "Live";
-      status.className = "status active";
-
-      updateTable(data);
-      updateMap(data);
-
-    } catch (err) {
-      status.textContent = "Connection error";
-      status.className = "status alert";
-      console.error(err);
+    static render(type = 'info') {
+      const logElement = document.getElementById('connectionLog');
+      logElement.innerHTML = this.logs
+        .map(log => `<div class="log-entry ${type}">${log}</div>`)
+        .join('');
     }
   }
 
-  function updateTable(data) {
-    const table = document.getElementById("tableBody");
-    table.innerHTML = "";
+  // ==================== MAP SETUP ====================
+  const map = L.map('map').setView([34.0837, 74.8605], 17);
 
-    for (let animal in data) {
-      const zone = data[animal];
-      const time = new Date().toLocaleTimeString();
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors',
+    maxZoom: 19
+  }).addTo(map);
 
-      // detect change
-      if (lastData[animal] && lastData[animal] !== zone) {
-        console.log(`Change detected: ${animal} moved to ${zone}`);
+  // Define zones with colors
+  const zones = {
+    "SKICC_MainHall": {
+      coords: [34.0837, 74.8605],
+      color: "#667eea"
+    },
+    "SKICC_NorthLawn": {
+      coords: [34.0845, 74.8604],
+      color: "#764ba2"
+    },
+    "SKICC_SouthLawn": {
+      coords: [34.0829, 74.8606],
+      color: "#f59e0b"
+    },
+    "SKICC_Parking": {
+      coords: [34.0833, 74.8596],
+      color: "#ef4444"
+    },
+    "SKICC_Lakeside": {
+      coords: [34.0841, 74.8615],
+      color: "#10b981"
+    }
+  };
+
+  // Draw zones on map
+  Object.entries(zones).forEach(([zoneName, zone]) => {
+    L.circle(zone.coords, {
+      radius: 50,
+      color: zone.color,
+      weight: 2,
+      opacity: 0.7,
+      fillOpacity: 0.2
+    }).addTo(map).bindPopup(`<strong>${zoneName}</strong>`);
+  });
+
+  // ==================== API REQUESTS ====================
+  async function fetchWithTimeout(url, timeout = CONFIG.REQUEST_TIMEOUT) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const response = await fetch(url, {
+        signal: controller.signal,
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      lastData[animal] = zone;
-
-      table.innerHTML += `
-        <tr>
-          <td>${animal}</td>
-          <td class="zone">${zone}</td>
-          <td>${time}</td>
-        </tr>
-      `;
+      const data = await response.json();
+      return { success: true, data };
+    } catch (error) {
+      clearTimeout(timeoutId);
+      
+      if (error.name === 'AbortError') {
+        throw new Error('Request timeout - server not responding');
+      }
+      throw error;
     }
+  }
+
+  async function fetchDataWithRetry() {
+    if (appState.fetchInProgress) return;
+
+    appState.fetchInProgress = true;
+
+    for (let attempt = 1; attempt <= CONFIG.MAX_RETRIES; attempt++) {
+      try {
+        Logger.add(`Fetching data (attempt ${attempt}/${CONFIG.MAX_RETRIES})...`);
+
+        const result = await fetchWithTimeout(CONFIG.API_ENDPOINT);
+
+        if (!result.success) {
+          throw new Error('Invalid response');
+        }
+
+        const data = result.data;
+
+        // Validate data
+        if (typeof data !== 'object') {
+          throw new Error('Invalid data format');
+        }
+
+        // Update state
+        appState.animalData = data;
+        appState.lastUpdateTime = new Date();
+        appState.retryCount = 0;
+        appState.connected = true;
+
+        Logger.add(`✅ Successfully fetched ${Object.keys(data).length} animal(s)`, 'success');
+
+        // Update UI
+        updateUI(data);
+        updateMap(data);
+        updateStats(data);
+        updateStatusIndicator(true);
+
+        appState.fetchInProgress = false;
+        return;
+
+      } catch (error) {
+        Logger.add(`❌ Attempt ${attempt} failed: ${error.message}`, 'error');
+
+        if (attempt < CONFIG.MAX_RETRIES) {
+          await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY));
+        } else {
+          appState.connected = false;
+          appState.retryCount++;
+          updateStatusIndicator(false);
+          Logger.add(`Failed after ${CONFIG.MAX_RETRIES} retries`, 'error');
+        }
+      }
+    }
+
+    appState.fetchInProgress = false;
+  }
+
+  // ==================== UI UPDATES ====================
+  function updateStatusIndicator(connected) {
+    const dot = document.getElementById('statusDot');
+    const text = document.getElementById('statusText');
+
+    if (connected) {
+      dot.classList.add('connected');
+      text.textContent = `Live (${appState.lastUpdateTime.toLocaleTimeString()})`;
+    } else {
+      dot.classList.remove('connected');
+      text.textContent = `Offline - Retrying...`;
+    }
+  }
+
+  function updateStats(data) {
+    const animals = Object.keys(data);
+    const zonesSet = new Set(Object.values(data));
+
+    document.getElementById('animalCount').textContent = animals.length;
+    document.getElementById('zoneCount').textContent = zonesSet.size;
+  }
+
+  function updateUI(data) {
+    const animalsList = document.getElementById('animalsList');
+
+    if (Object.keys(data).length === 0) {
+      animalsList.innerHTML = '<div class="no-data">No animals detected yet...</div>';
+      return;
+    }
+
+    animalsList.innerHTML = Object.entries(data)
+      .map(([animal, zone]) => {
+        const timestamp = appState.timestamps[animal] || new Date();
+        appState.timestamps[animal] = timestamp;
+        
+        const zoneColor = zones[zone]?.color || '#667eea';
+        
+        return `
+          <div class="animal-badge" style="background: linear-gradient(135deg, ${zoneColor} 0%, ${adjustColor(zoneColor, -20)} 100%);">
+            <div class="animal-info">
+              <div class="animal-name">🐾 ${animal}</div>
+              <div class="animal-zone">${zone}</div>
+              <div class="animal-time">Updated: ${timestamp.toLocaleTimeString()}</div>
+            </div>
+            <div class="zone-badge">${zone.split('_')[1]}</div>
+          </div>
+        `;
+      })
+      .join('');
+  }
+
+  function adjustColor(color, percent) {
+    const usePound = color[0] === "#";
+    const col = usePound ? color.slice(1) : color;
+    const num = parseInt(col, 16);
+    const amt = Math.round(2.55 * percent);
+    const R = (num >> 16) + amt;
+    const G = (num >> 8 & 0x00FF) + amt;
+    const B = (num & 0x0000FF) + amt;
+    return "#" + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+      (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+      (B < 255 ? B < 1 ? 0 : B : 255))
+      .toString(16).slice(1);
   }
 
   function updateMap(data) {
-    for (let animal in data) {
-      const zone = data[animal];
-      const coords = zones[zone];
-
-      if (!coords) continue;
-
-      if (markers[animal]) {
-        markers[animal].setLatLng(coords);
-      } else {
-        markers[animal] = L.marker(coords)
-          .addTo(map)
-          .bindPopup(animal + " — " + zone);
+    // Remove markers for animals no longer tracked
+    Object.keys(appState.markers).forEach(animal => {
+      if (!data[animal]) {
+        map.removeLayer(appState.markers[animal]);
+        delete appState.markers[animal];
       }
-    }
+    });
+
+    // Update or create markers
+    Object.entries(data).forEach(([animal, zone]) => {
+      const zoneInfo = zones[zone];
+      if (!zoneInfo) {
+        Logger.add(`⚠️ Unknown zone: ${zone}`, 'error');
+        return;
+      }
+
+      const coords = zoneInfo.coords;
+
+      if (appState.markers[animal]) {
+        appState.markers[animal].setLatLng(coords);
+        appState.markers[animal].setPopupContent(`<strong>${animal}</strong><br>${zone}`);
+      } else {
+        const marker = L.marker(coords, {
+          icon: L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+          })
+        })
+          .addTo(map)
+          .bindPopup(`<strong>${animal}</strong><br>${zone}`);
+
+        appState.markers[animal] = marker;
+      }
+    });
   }
 
-  setInterval(fetchData, 3000);
-  fetchData();
+  function manualRefresh() {
+    const btn = document.getElementById('refreshBtn');
+    btn.classList.add('loading');
+    btn.disabled = true;
+
+    fetchDataWithRetry().then(() => {
+      btn.classList.remove('loading');
+      btn.disabled = false;
+    });
+  }
+
+  // ==================== INITIALIZATION ====================
+  Logger.add('Dashboard initialized', 'success');
+  Logger.add('Connecting to API...');
+
+  // Initial fetch
+  fetchDataWithRetry();
+
+  // Auto-refresh interval
+  setInterval(() => {
+    if (!appState.fetchInProgress) {
+      fetchDataWithRetry();
+    }
+  }, CONFIG.FETCH_INTERVAL);
+
+  // Connection monitoring
+  window.addEventListener('online', () => {
+    Logger.add('🌐 Internet connection restored', 'success');
+    appState.retryCount = 0;
+    fetchDataWithRetry();
+  });
+
+  window.addEventListener('offline', () => {
+    Logger.add('🌐 Internet connection lost', 'error');
+    appState.connected = false;
+    updateStatusIndicator(false);
+  });
+
+  Logger.add('Auto-refresh enabled (every 3s)', 'success');
 </script>
 
 </body>
