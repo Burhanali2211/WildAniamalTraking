@@ -139,13 +139,13 @@ void setup() {
   // Register broadcast address as a peer to receive from unknown senders
   esp_now_peer_info_t peerInfo = {};
   memcpy(&peerInfo.peer_addr, broadcastAddress, 6);
-  peerInfo.channel = 0;  // Listen on all channels
+  peerInfo.channel = 1;  // MUST match animal board channel (1)
   peerInfo.encrypt = false;
   
   if (esp_now_add_peer(&peerInfo) != ESP_OK) {
     Serial.println("⚠️ Failed to add broadcast peer (might already exist)");
   } else {
-    Serial.println("✅ Broadcast peer registered");
+    Serial.println("✅ Broadcast peer registered on channel 1");
   }
   
   delay(100);
@@ -155,6 +155,7 @@ void setup() {
   Serial.println(ssid);
   
   WiFi.setAutoReconnect(true);
+  WiFi.setScanMethod(WIFI_FAST_SCAN);  // Minimize channel hopping
   WiFi.begin(ssid, password);
   
   int attempts = 0;
@@ -168,6 +169,12 @@ void setup() {
     Serial.println("\n✅ WiFi Connected");
     Serial.print("IP: ");
     Serial.println(WiFi.localIP());
+    
+    // Debug: Show WiFi channel
+    uint8_t channel = WiFi.channel();
+    Serial.print("📶 WiFi Channel: ");
+    Serial.print(channel);
+    Serial.println(" (Animal is on channel 1)");
   } else {
     Serial.println("\n⚠️ WiFi Connection Failed - ESP-NOW Still Active");
   }
