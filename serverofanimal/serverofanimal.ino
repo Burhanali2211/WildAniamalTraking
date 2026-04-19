@@ -96,11 +96,22 @@ void OnDataRecv(const esp_now_recv_info *info, const uint8_t *incomingData, int 
   String name = String(msg.name);
   int rssi = info->rx_ctrl->rssi;
 
+  // Debug: Print sender MAC address
   Serial.println("");
+  Serial.print("📡 Frame from MAC: ");
+  for (int i = 0; i < 6; i++) {
+    if (info->src_addr[i] < 16) Serial.print("0");
+    Serial.print(info->src_addr[i], HEX);
+    if (i < 5) Serial.print(":");
+  }
+  Serial.println("");
+
   Serial.print("🐾 Received: ");
   Serial.print(name);
   Serial.print(" | RSSI: ");
-  Serial.println(rssi);
+  Serial.print(rssi);
+  Serial.print(" | Length: ");
+  Serial.println(len);
 
   // 🔊 Buzzer alert
   if (digitalRead(SWITCH) == HIGH) {
@@ -133,6 +144,10 @@ void setup() {
   // 🔴 CRITICAL: Set WiFi mode FIRST, before any ESP-NOW operations
   WiFi.mode(WIFI_STA);
   delay(100);
+  
+  // Print server MAC address
+  Serial.print("📍 My MAC Address: ");
+  Serial.println(WiFi.macAddress());
 
   // Initialize ESP-NOW BEFORE WiFi connection
   if (esp_now_init() != ESP_OK) {
@@ -143,18 +158,8 @@ void setup() {
   Serial.println("✅ ESP-NOW Initialized");
   esp_now_register_recv_cb(OnDataRecv);
   
-  // Register broadcast address as a peer to receive from unknown senders
-  esp_now_peer_info_t peerInfo = {};
-  memcpy(&peerInfo.peer_addr, broadcastAddress, 6);
-  peerInfo.channel = 0;  // Let peer work on any channel (auto-detect)
-  peerInfo.encrypt = false;
-  
-  if (esp_now_add_peer(&peerInfo) != ESP_OK) {
-    Serial.println("⚠️ Failed to add broadcast peer (might already exist)");
-  } else {
-    Serial.println("✅ Broadcast peer registered (auto-channel)");
-  }
-  
+  // Try receiving without explicit peer registration
+  // This allows receiving broadcasts from any device
   delay(100);
   
   // Now connect to WiFi for API communication (skip if testing ESP-NOW only)
