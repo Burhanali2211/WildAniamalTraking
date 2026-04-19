@@ -76,6 +76,10 @@ void sendLocationToServer() {
   Serial.print(millis() / 1000);
   Serial.print("s] ");
 
+  // Set timeout to 5 seconds (5000ms)
+  http.setTimeout(5000);
+  http.setConnectTimeout(5000);
+
   if (http.begin(client, serverUrl)) {
     http.addHeader("Content-Type", "application/json");
     
@@ -89,8 +93,12 @@ void sendLocationToServer() {
     if (httpResponseCode == 200) {
       Serial.println(" ✅");
       sendCount++;
+    } else if (httpResponseCode > 0) {
+      Serial.println(" ❌ (HTTP Error)");
     } else {
-      Serial.println(" ❌");
+      Serial.print(" ❌ (Connection Error: ");
+      Serial.print(httpResponseCode);
+      Serial.println(")");
     }
 
     http.end();

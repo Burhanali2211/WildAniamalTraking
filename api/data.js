@@ -17,11 +17,14 @@ export default function handler(req, res) {
 
   if (req.method === "GET") {
     try {
+      console.log('🔄 GET /api/data - Fetching animals...');
+      
       // Get clean data (removes stale animals automatically)
       const animalData = Storage.getAll();
       const animalCount = Object.keys(animalData).length;
       
       console.log(`✅ Sending data: ${animalCount} active animal(s)`);
+      console.log(`📤 Response data:`, animalData);
 
       // Only return active animals
       res.status(200).json(animalData);

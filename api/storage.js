@@ -11,11 +11,15 @@ const Storage = {
   set: (animal, zone) => {
     dataStore[animal] = zone;
     updateTimestamps[animal] = Date.now();
+    console.log(`💾 Storage.set() - Stored ${animal} → ${zone}. Total animals now: ${Object.keys(dataStore).length}`);
+    console.log(`📦 Current dataStore:`, dataStore);
   },
 
   // Get all animal data (only active ones)
   getAll: () => {
     Storage.cleanupStaleAnimals();
+    const count = Object.keys(dataStore).length;
+    console.log(`📦 Storage.getAll() called - returning ${count} animals:`, dataStore);
     return { ...dataStore };
   },
 
