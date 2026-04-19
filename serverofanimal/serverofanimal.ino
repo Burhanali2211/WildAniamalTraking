@@ -154,7 +154,6 @@ void setup() {
   Serial.print("📡 Connecting to WiFi: ");
   Serial.println(ssid);
   
-  WiFi.setAutoConnect(true);
   WiFi.setAutoReconnect(true);
   WiFi.begin(ssid, password);
   
