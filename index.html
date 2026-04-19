@@ -1,63 +1,171 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Wildlife Dashboard</title>
+  <title>Wildlife Monitoring Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
   <style>
-    body { font-family: Arial; background: #0f172a; color: white; margin: 0; }
-    h1 { text-align: center; padding: 10px; }
-    #map { height: 50vh; margin: 10px; border-radius: 10px; }
-    table { width: 90%; margin: 10px auto; border-collapse: collapse; }
-    th, td { padding: 10px; border-bottom: 1px solid #444; text-align: center; }
-    th { background: #1e293b; }
-    .zone { color: #38bdf8; font-weight: bold; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto;
+      background: #f4f6f8;
+      color: #1f2933;
+    }
+
+    header {
+      background: #ffffff;
+      border-bottom: 1px solid #ddd;
+      padding: 12px 20px;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 12px;
+      padding: 12px;
+    }
+
+    #map {
+      height: 70vh;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      background: #fff;
+    }
+
+    .panel {
+      background: #ffffff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 10px;
+      overflow: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th {
+      text-align: left;
+      padding: 8px;
+      border-bottom: 1px solid #ccc;
+      font-weight: 600;
+      background: #fafafa;
+    }
+
+    td {
+      padding: 8px;
+      border-bottom: 1px solid #eee;
+    }
+
+    tr:hover {
+      background: #f9fafb;
+    }
+
+    .zone {
+      font-weight: 500;
+    }
+
+    .status {
+      font-size: 13px;
+      color: #555;
+      margin-bottom: 8px;
+    }
+
+    .active {
+      color: #0a7f3f;
+      font-weight: 600;
+    }
+
+    .alert {
+      color: #b91c1c;
+      font-weight: 600;
+    }
+
   </style>
 </head>
 
 <body>
 
-<h1>Wildlife Monitoring Dashboard</h1>
-<div id="map"></div>
+<header>
+  Wildlife Monitoring – SKICC Zones
+</header>
 
-<table>
-  <thead>
-    <tr><th>Animal</th><th>Zone</th></tr>
-  </thead>
-  <tbody id="tableBody"></tbody>
-</table>
+<div class="container">
+
+  <div id="map"></div>
+
+  <div class="panel">
+    <div class="status" id="status">Connecting...</div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Animal</th>
+          <th>Zone</th>
+          <th>Last Seen</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+</div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
-  const zones = {
-    "Forest_North": [33.12, 74.56],
-    "Forest_South": [33.05, 74.60],
-    "Village_West": [33.10, 74.50],
-    "Village_East": [33.10, 74.65]
-  };
+  // 📍 SKICC center
+  const map = L.map('map').setView([34.0837, 74.8605], 17);
 
-  const map = L.map('map').setView([33.1, 74.55], 11);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
+  // 🔹 Zones (realistic layout)
+  const zones = {
+    "SKICC_MainHall": [34.0837, 74.8605],
+    "SKICC_NorthLawn": [34.0845, 74.8604],
+    "SKICC_SouthLawn": [34.0829, 74.8606],
+    "SKICC_Parking": [34.0833, 74.8596],
+    "SKICC_Lakeside": [34.0841, 74.8615]
+  };
+
   let markers = {};
+  let lastData = {};
+
+  // Draw zones
+  Object.entries(zones).forEach(([zone, coord]) => {
+    L.circle(coord, {
+      radius: 40,
+      color: "#2563eb",
+      weight: 1
+    }).addTo(map).bindPopup(zone);
+  });
 
   async function fetchData() {
+    const status = document.getElementById("status");
+
     try {
-      console.log("📡 Fetching data...");
+      status.textContent = "Updating...";
+      status.className = "status";
 
       const res = await fetch("/api/data");
       const data = await res.json();
 
-      console.log("✅ Data received:", data);
+      status.textContent = "Live";
+      status.className = "status active";
 
       updateTable(data);
       updateMap(data);
 
     } catch (err) {
-      console.error("❌ Fetch error:", err);
+      status.textContent = "Connection error";
+      status.className = "status alert";
+      console.error(err);
     }
   }
 
@@ -66,12 +174,21 @@
     table.innerHTML = "";
 
     for (let animal in data) {
-      console.log(`📊 Table update → ${animal}: ${data[animal]}`);
+      const zone = data[animal];
+      const time = new Date().toLocaleTimeString();
+
+      // detect change
+      if (lastData[animal] && lastData[animal] !== zone) {
+        console.log(`Change detected: ${animal} moved to ${zone}`);
+      }
+
+      lastData[animal] = zone;
 
       table.innerHTML += `
         <tr>
           <td>${animal}</td>
-          <td class="zone">${data[animal]}</td>
+          <td class="zone">${zone}</td>
+          <td>${time}</td>
         </tr>
       `;
     }
@@ -82,24 +199,19 @@
       const zone = data[animal];
       const coords = zones[zone];
 
-      if (!coords) {
-        console.warn("⚠ Unknown zone:", zone);
-        continue;
-      }
+      if (!coords) continue;
 
       if (markers[animal]) {
         markers[animal].setLatLng(coords);
       } else {
         markers[animal] = L.marker(coords)
           .addTo(map)
-          .bindPopup(animal + " → " + zone);
+          .bindPopup(animal + " — " + zone);
       }
-
-      console.log(`🗺 Marker updated → ${animal} @ ${zone}`);
     }
   }
 
-  setInterval(fetchData, 5000);
+  setInterval(fetchData, 3000);
   fetchData();
 </script>
 
