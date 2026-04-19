@@ -154,8 +154,9 @@ void setup() {
   Serial.print("📡 Connecting to WiFi: ");
   Serial.println(ssid);
   
+  // 🔴 CRITICAL: Force WiFi to channel 1 (match animal device)
   WiFi.setAutoReconnect(true);
-  WiFi.setScanMethod(WIFI_FAST_SCAN);  // Minimize channel hopping
+  WiFi.setScanMethod(WIFI_FAST_SCAN);
   WiFi.begin(ssid, password);
   
   int attempts = 0;
@@ -170,11 +171,17 @@ void setup() {
     Serial.print("IP: ");
     Serial.println(WiFi.localIP());
     
-    // Debug: Show WiFi channel
+    // Force WiFi to stay on channel 1 to avoid ESP-NOW conflicts
+    uint8_t primary = 1;
+    wifi_second_chan_t second = WIFI_SECOND_CHAN_NONE;
+    esp_wifi_set_channel(primary, second);
+    delay(100);
+    
+    // Debug: Show WiFi channel after forcing
     uint8_t channel = WiFi.channel();
     Serial.print("📶 WiFi Channel: ");
     Serial.print(channel);
-    Serial.println(" (Animal is on channel 1)");
+    Serial.println(" (Forced to match animal on channel 1)");
   } else {
     Serial.println("\n⚠️ WiFi Connection Failed - ESP-NOW Still Active");
   }
