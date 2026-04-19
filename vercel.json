@@ -1,7 +1,9 @@
 {
+  "version": 2,
   "routes": [
-    { "handle": "filesystem" },
+    { "src": "/api/update", "methods": ["POST", "OPTIONS"], "dest": "/api/update.js" },
+    { "src": "/api/data", "methods": ["GET", "OPTIONS"], "dest": "/api/data.js" },
     { "src": "/api/(.*)", "dest": "/api/$1" },
-    { "src": "/", "dest": "/index.html" }
+    { "src": "/(.*)", "dest": "/$1" }
   ]
 }

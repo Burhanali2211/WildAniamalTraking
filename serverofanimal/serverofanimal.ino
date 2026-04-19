@@ -1,4 +1,5 @@
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <WebServer.h>
 #include <HTTPClient.h>
 
@@ -31,31 +32,45 @@ bool sendToVercelAPI(String animal, String zone) {
     return false;  // Rate limiting
   }
 
+  WiFiClientSecure client;
+  client.setInsecure(); // Skip certificate validation for Vercel HTTPS
+
   HTTPClient http;
-  http.setConnectTimeout(SEND_TIMEOUT);
   
-  if (!http.begin(vercelAPI)) {
-    Serial.println("❌ HTTP begin failed");
+  Serial.print("📤 Forwarding to Vercel: {\"animal\":\"");
+  Serial.print(animal);
+  Serial.print("\",\"zone\":\"");
+  Serial.print(zone);
+  Serial.println("\"}");
+
+  if (!http.begin(client, vercelAPI)) {
+    Serial.println("❌ HTTP begin failed (SSL/TLS Initialization)");
     return false;
   }
 
   http.addHeader("Content-Type", "application/json");
+  http.addHeader("User-Agent", "ESP32-Gateway/1.0");
+  http.setTimeout(10000); // 10 second timeout
+
+  // Clean strings (remove whitespace)
+  animal.trim();
+  zone.trim();
 
   String json = "{\"animal\":\"" + animal + "\",\"zone\":\"" + zone + "\"}";
-
-  Serial.print("📤 Forwarding to Vercel: ");
-  Serial.println(json);
 
   int httpResponseCode = http.POST(json);
   bool success = (httpResponseCode == 200);
 
-  Serial.print("📨 Vercel Response: ");
+  Serial.print("📨 Vercel Response Code: ");
   Serial.print(httpResponseCode);
-  Serial.print(" | Animal: ");
-  Serial.print(animal);
-  Serial.print(" | Zone: ");
-  Serial.print(zone);
-  Serial.println(success ? " ✅" : " ❌");
+  
+  if (success) {
+    Serial.println(" ✅ (Success)");
+  } else {
+    Serial.print(" ❌ (Error) ");
+    String response = http.getString();
+    Serial.println("Response Body: " + response);
+  }
 
   http.end();
   

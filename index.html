@@ -1,47 +1,82 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Wildlife Monitoring Dashboard</title>
+  <meta charset="UTF-8">
+  <title>SKICC Wildlife Tracker • Live Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
+  <!-- Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
 
   <style>
+    :root {
+      --bg-color: #0c0e12;
+      --card-bg: rgba(22, 27, 34, 0.7);
+      --border-color: rgba(255, 255, 255, 0.1);
+      --accent-color: #3fb950;
+      --accent-glow: rgba(63, 185, 80, 0.3);
+      --text-main: #e6edf3;
+      --text-dim: #848d97;
+      --hazard-color: #f85149;
+    }
+
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
+      -webkit-font-smoothing: antialiased;
     }
 
     body {
-      font-family: 'Inter', 'Segoe UI', sans-serif;
-      background: #f9fafb;
-      color: #1f2937;
-      min-height: 100vh;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-color);
+      color: var(--text-main);
+      overflow: hidden;
+    }
+
+    /* Premium Mesh Background */
+    body::before {
+      content: "";
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: 
+        radial-gradient(circle at 20% 20%, rgba(63, 185, 80, 0.05) 0%, transparent 40%),
+        radial-gradient(circle at 80% 80%, rgba(31, 111, 235, 0.05) 0%, transparent 40%);
+      pointer-events: none;
+      z-index: 0;
     }
 
     header {
-      background: #ffffff;
-      border-bottom: 1px solid #e5e7eb;
-      padding: 16px 24px;
+      background: rgba(12, 14, 18, 0.8);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 14px 24px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      position: relative;
+      z-index: 10;
     }
 
     header h1 {
-      font-size: 22px;
-      color: #1f2937;
+      font-size: 18px;
       display: flex;
       align-items: center;
       gap: 12px;
       font-weight: 700;
-      letter-spacing: 0.5px;
+      letter-spacing: -0.5px;
+      color: var(--text-main);
+    }
+
+    header h1 i {
+      color: var(--accent-color);
+      filter: drop-shadow(0 0 8px var(--accent-glow));
     }
 
     .header-right {
@@ -53,325 +88,332 @@
     .status-indicator {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 8px 14px;
-      background: #f3f4f6;
-      border: 1px solid #e5e7eb;
-      border-radius: 6px;
-      font-size: 12px;
+      gap: 10px;
+      padding: 6px 14px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      border-radius: 100px;
+      font-size: 11px;
       font-weight: 600;
-      color: #4b5563;
+      color: var(--text-dim);
     }
 
     .status-dot {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: #9ca3af;
+      background: #484f58;
+      position: relative;
     }
 
     .status-dot.connected {
-      background: #059669;
+      background: var(--accent-color);
+      box-shadow: 0 0 10px var(--accent-color);
     }
 
-    .main-content {
+    .status-dot.connected::after {
+      content: "";
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: var(--accent-color);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 0.8; }
+      100% { transform: scale(3); opacity: 0; }
+    }
+
+    .main-layout {
       display: grid;
-      grid-template-columns: 1fr 320px;
-      gap: 16px;
-      padding: 16px;
-      min-height: calc(100vh - 80px);
-    }
-
-    @media (max-width: 1200px) {
-      .main-content {
-        grid-template-columns: 1fr;
-      }
+      grid-template-columns: 1fr 340px;
+      height: calc(100vh - 60px);
+      position: relative;
     }
 
     #map {
-      height: calc(100vh - 110px);
-      border-radius: 8px;
-      background: #ffffff;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-      border: 1px solid #e5e7eb;
-      overflow: hidden;
-    }
-
-    @media (max-width: 1200px) {
-      #map {
-        height: 60vh;
-      }
+      background: #0d1117;
+      z-index: 1;
     }
 
     .sidebar {
+      background: rgba(12, 14, 18, 0.95);
+      border-left: 1px solid var(--border-color);
+      padding: 20px;
       display: flex;
       flex-direction: column;
-      gap: 14px;
-      height: fit-content;
-      position: sticky;
-      top: 80px;
+      gap: 20px;
+      z-index: 10;
+      overflow-y: auto;
     }
 
     .card {
-      background: #ffffff;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
       padding: 16px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-      transition: all 0.2s ease;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
     }
 
-    .card:hover {
-      border-color: #d1d5db;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
-    }
-
-    .card-title {
-      font-size: 13px;
+    .card-label {
+      font-size: 11px;
       font-weight: 700;
       text-transform: uppercase;
-      color: #374151;
+      color: var(--text-dim);
       margin-bottom: 12px;
-      letter-spacing: 0.8px;
+      letter-spacing: 1px;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
     }
 
-    .stats-row {
+    .card-label i {
+      color: var(--accent-color);
+    }
+
+    .stats-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 12px;
+      gap: 12px;
     }
 
-    .stat-item {
-      background: #f9fafb;
-      border: 1px solid #e5e7eb;
-      border-radius: 6px;
+    .stat-box {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
       padding: 12px;
       text-align: center;
     }
 
-    .stat-value {
-      font-size: 24px;
+    .stat-val {
+      font-size: 28px;
       font-weight: 700;
-      color: #1f2937;
-      line-height: 1;
+      color: var(--text-main);
+      font-family: 'JetBrains Mono', monospace;
     }
 
-    .stat-label {
-      font-size: 10px;
-      color: #6b7280;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+    .stat-tag {
+      font-size: 9px;
+      color: var(--text-dim);
       margin-top: 4px;
+      font-weight: 600;
+      text-transform: uppercase;
     }
 
-    .animals-container {
+    .animal-feed {
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      max-height: 35vh;
+      gap: 10px;
+      max-height: 300px;
       overflow-y: auto;
+      padding-right: 4px;
     }
 
-    .animal-item {
-      background: #f9fafb;
-      border-left: 3px solid #6b7280;
-      border-radius: 4px;
-      padding: 10px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      font-size: 12px;
+    .animal-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
     }
 
-    .animal-item:hover {
-      background: #f3f4f6;
+    .animal-card:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: var(--accent-color);
+      transform: translateX(4px);
     }
 
-    .animal-name {
+    .animal-card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      width: 3px;
+      background: var(--accent-color);
+      opacity: 0.5;
+    }
+
+    .animal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 6px;
+    }
+
+    .animal-id {
       font-weight: 700;
-      color: #1f2937;
-      margin-bottom: 4px;
+      font-size: 13px;
+      color: var(--text-main);
     }
 
-    .animal-zone {
-      color: #4b5563;
+    .animal-loc {
       font-size: 11px;
-    }
-
-    .animal-time {
-      color: #9ca3af;
-      font-size: 10px;
-      margin-top: 3px;
-    }
-
-    .no-data {
-      text-align: center;
-      padding: 20px 10px;
-      color: #9ca3af;
-      font-size: 12px;
-    }
-
-    .log-container {
-      background: #f9fafb;
-      border: 1px solid #e5e7eb;
+      color: var(--accent-color);
+      background: var(--accent-glow);
+      padding: 2px 6px;
       border-radius: 4px;
-      padding: 8px;
-      max-height: 120px;
-      overflow-y: auto;
-      font-family: 'Courier New', monospace;
-      font-size: 10px;
-    }
-
-    .log-entry {
-      padding: 4px 0;
-      color: #6b7280;
-      line-height: 1.4;
-    }
-
-    .log-entry.success {
-      color: #059669;
-    }
-
-    .log-entry.error {
-      color: #dc2626;
-    }
-
-    .log-entry.warning {
-      color: #d97706;
-    }
-
-    .refresh-btn {
-      background: #374151;
-      color: white;
-      border: none;
-      padding: 10px 14px;
-      border-radius: 6px;
-      cursor: pointer;
       font-weight: 600;
-      font-size: 12px;
-      transition: all 0.2s ease;
+    }
+
+    .animal-meta {
+      font-size: 10px;
+      color: var(--text-dim);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .terminal {
+      background: #000;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      height: 140px;
+      overflow-y: auto;
+      color: #7ee787;
+    }
+
+    .term-line {
+      margin-bottom: 4px;
+      opacity: 0.8;
+    }
+
+    .term-line span {
+      color: #8b949e;
+    }
+
+    .btn-action {
+      background: var(--accent-color);
+      color: #0c0e12;
+      border: none;
+      padding: 12px;
+      border-radius: 8px;
       width: 100%;
-      margin-top: 8px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .refresh-btn:hover {
-      background: #1f2937;
-    }
-
-    .refresh-btn:active {
-      background: #111827;
-    }
-
-    .refresh-btn.loading {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    /* Scrollbar */
-    .animals-container::-webkit-scrollbar,
-    .log-container::-webkit-scrollbar {
-      width: 4px;
-    }
-
-    .animals-container::-webkit-scrollbar-track,
-    .log-container::-webkit-scrollbar-track {
-      background: #f9fafb;
-      border-radius: 2px;
-    }
-
-    .animals-container::-webkit-scrollbar-thumb,
-    .log-container::-webkit-scrollbar-thumb {
-      background: #d1d5db;
-      border-radius: 2px;
-    }
-
-    .animals-container::-webkit-scrollbar-thumb:hover,
-    .log-container::-webkit-scrollbar-thumb:hover {
-      background: #9ca3af;
-    }
-
-    /* Red marker for animals */
-    .animal-marker-label {
-      background: white;
-      border: 2px solid #dc2626;
-      border-radius: 20px;
-      padding: 4px 8px;
-      font-size: 11px;
       font-weight: 700;
-      color: #dc2626;
+      font-size: 12px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.2s;
+      margin-top: 10px;
+    }
+
+    .btn-action:hover {
+      filter: brightness(1.2);
+      box-shadow: 0 0 15px var(--accent-glow);
+    }
+
+    /* Custom Leaflet Dark Theme */
+    .leaflet-container {
+      background: #0d1117 !important;
+    }
+    
+    .leaflet-tile-pane {
+      filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+    }
+
+    .animal-marker {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .marker-label {
+      background: #161b22;
+      border: 1px solid var(--accent-color);
+      color: var(--accent-color);
+      padding: 3px 10px;
+      border-radius: 100px;
+      font-size: 10px;
+      font-weight: 700;
       white-space: nowrap;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      margin-bottom: 4px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
     }
 
-    .animal-marker-dot {
-      width: 14px;
-      height: 14px;
+    .marker-pin {
+      width: 12px;
+      height: 12px;
+      background: var(--accent-color);
+      border: 2px solid #0d1117;
       border-radius: 50%;
-      background: #dc2626;
-      box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+      box-shadow: 0 0 15px var(--accent-glow);
     }
 
+    ::-webkit-scrollbar {
+      width: 5px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+    }
   </style>
 </head>
-
 <body>
 
 <header>
   <h1>
-    <i class="fas fa-tree"></i>
-    SKICC Wildlife Tracker
+    <i class="fas fa-satellite-dish"></i>
+    SKICC WILDLIFE TRACKER
   </h1>
   <div class="header-right">
     <div class="status-indicator">
       <span class="status-dot" id="statusDot"></span>
-      <span id="statusText">Initializing...</span>
+      <span id="statusText">CONNECTING...</span>
     </div>
   </div>
 </header>
 
-<div class="main-content">
+<div class="main-layout">
   <div id="map"></div>
 
   <div class="sidebar">
     <div class="card">
-      <div class="card-title">
-        <i class="fas fa-chart-bar"></i> Activity
+      <div class="card-label">
+        <i class="fas fa-microchip"></i> Live Assets
       </div>
-      <div class="stats-row">
-        <div class="stat-item">
-          <div class="stat-value" id="animalCount">0</div>
-          <div class="stat-label">Animals</div>
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-val" id="animalCount">00</div>
+          <div class="stat-tag">Tracked</div>
         </div>
-        <div class="stat-item">
-          <div class="stat-value" id="zoneCount">0</div>
-          <div class="stat-label">Zones</div>
+        <div class="stat-box">
+          <div class="stat-val" id="zoneCount">00</div>
+          <div class="stat-tag">Active Zones</div>
         </div>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-title">
-        <i class="fas fa-map-marker-alt"></i> Detected
+      <div class="card-label">
+        <i class="fas fa-paw"></i> Observation Feed
       </div>
-      <div class="animals-container" id="animalsList">
-        <div class="no-data">Waiting for data...</div>
+      <div class="animal-feed" id="animalsList">
+        <div style="text-align: center; color: var(--text-dim); padding: 40px 0;">
+          <i class="fas fa-circle-notch fa-spin"></i><br>
+          <span style="font-size: 10px; margin-top: 8px; display: block;">Awaiting Data Stream</span>
+        </div>
       </div>
-      <button class="refresh-btn" id="refreshBtn" onclick="manualRefresh()">
-        Refresh
+      <button class="btn-action" id="refreshBtn" onclick="manualRefresh()">
+        Full Re-Scan
       </button>
     </div>
 
     <div class="card">
-      <div class="card-title">
-        <i class="fas fa-activity"></i> System
+      <div class="card-label">
+        <i class="fas fa-terminal"></i> System Logic
       </div>
-      <div class="log-container" id="connectionLog">
-        <div class="log-entry">System starting...</div>
+      <div class="terminal" id="terminal">
+        <div class="term-line"><span>></span> Kernel initialized...</div>
+        <div class="term-line"><span>></span> Ready for stream...</div>
       </div>
     </div>
   </div>
@@ -382,304 +424,167 @@
 <script>
   // ==================== CONFIG ====================
   const CONFIG = {
-    API_ENDPOINT: 'https://wild-aniamal-traking.vercel.app/api/data',
+    API_ENDPOINT: '/api/data', // Use relative path for Vercel
     FETCH_INTERVAL: 3000,
-    REQUEST_TIMEOUT: 5000,
-    MAX_RETRIES: 3,
-    RETRY_DELAY: 1000,
-    LOG_MAX_ENTRIES: 15
+    ZONES: {
+      "SKICC_MainHall":  [34.0837, 74.8605],
+      "SKICC_NorthLawn": [34.0852, 74.8608],
+      "SKICC_SouthLawn": [34.0820, 74.8605],
+      "SKICC_Parking":   [34.0837, 74.8580],
+      "SKICC_Lakeside":  [34.0837, 74.8630],
+      "SKICC_GateArea":  [34.0830, 74.8570],
+      "SKICC_Perimeter": [34.0860, 74.8620]
+    }
   };
 
   // ==================== STATE ====================
-  let appState = {
-    connected: false,
-    animalData: {},
-    lastUpdateTime: null,
-    retryCount: 0,
-    fetchInProgress: false,
+  let state = {
+    animals: {},
     markers: {},
-    timestamps: {}
+    isFetching: false
   };
 
   // ==================== LOGGING ====================
-  class Logger {
-    static logs = [];
-
-    static add(message, type = 'info') {
-      const timestamp = new Date().toLocaleTimeString();
-      const entry = `${timestamp} • ${message}`;
-      this.logs.unshift(entry);
-      
-      if (this.logs.length > CONFIG.LOG_MAX_ENTRIES) {
-        this.logs.pop();
-      }
-
-      this.render(type);
-    }
-
-    static render(type = 'info') {
-      const logElement = document.getElementById('connectionLog');
-      logElement.innerHTML = this.logs
-        .map(log => `<div class="log-entry ${type}">${log}</div>`)
-        .join('');
-    }
+  function log(msg, type = 'info') {
+    const term = document.getElementById('terminal');
+    const line = document.createElement('div');
+    line.className = 'term-line';
+    const color = type === 'error' ? '#f85149' : (type === 'success' ? '#3fb950' : '#8b949e');
+    line.innerHTML = `<span>></span> <span style="color: ${color}">${msg}</span>`;
+    
+    term.appendChild(line);
+    term.scrollTop = term.scrollHeight;
+    
+    if (term.children.length > 30) term.removeChild(term.firstChild);
   }
 
-  // ==================== MAP SETUP ====================
-  const map = L.map('map').setView([34.0837, 74.8605], 17);
+  // ==================== MAP ====================
+  const map = L.map('map', {
+    zoomControl: false,
+    attributionControl: false
+  }).setView([34.0837, 74.8605], 17);
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap',
-    maxZoom: 19,
-    minZoom: 15
-  }).addTo(map);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-  // Custom zones spread across SKICC campus
-  const zones = {
-    "SKICC_MainHall": {
-      coords: [34.0837, 74.8605],
-      color: "#4b5563"
-    },
-    "SKICC_NorthLawn": {
-      coords: [34.0852, 74.8608],
-      color: "#4b5563"
-    },
-    "SKICC_SouthLawn": {
-      coords: [34.0820, 74.8605],
-      color: "#4b5563"
-    },
-    "SKICC_Parking": {
-      coords: [34.0837, 74.8580],
-      color: "#4b5563"
-    },
-    "SKICC_Lakeside": {
-      coords: [34.0837, 74.8630],
-      color: "#4b5563"
-    }
-  };
-
-  // Draw zones with minimalistic styling
-  Object.entries(zones).forEach(([zoneName, zone]) => {
-    L.circle(zone.coords, {
-      radius: 60,
-      color: "#9ca3af",
+  // Draw Zones
+  Object.entries(CONFIG.ZONES).forEach(([name, coords]) => {
+    L.circle(coords, {
+      radius: 50,
+      color: 'rgba(63, 185, 80, 0.4)',
       weight: 1,
-      opacity: 0.5,
-      fillOpacity: 0.08,
-      dashArray: ''
-    }).addTo(map).bindPopup(`${zoneName}`);
+      fillColor: 'rgba(63, 185, 80, 0.05)',
+      fillOpacity: 1
+    }).addTo(map);
   });
 
-  // ==================== API REQUESTS ====================
-  async function fetchWithTimeout(url, timeout = CONFIG.REQUEST_TIMEOUT) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
+  // ==================== CORE LOGIC ====================
+  async function syncData() {
+    if (state.isFetching) return;
+    state.isFetching = true;
 
     try {
-      const response = await fetch(url, {
-        signal: controller.signal,
-        method: 'GET',
-        headers: { 
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache'
-        }
-      });
-
-      clearTimeout(timeoutId);
-
-      // Handle 304 Not Modified by returning empty data
-      if (response.status === 304) {
-        console.log('🔄 Server returned 304 Not Modified (no changes)');
-        return { success: true, data: {} };
-      }
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('✅ API Response:', data);
-      return { success: true, data };
-    } catch (error) {
-      clearTimeout(timeoutId);
-      if (error.name === 'AbortError') {
-        throw new Error('Request timeout');
-      }
-      throw error;
+      const resp = await fetch(CONFIG.API_ENDPOINT);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      
+      const data = await resp.json();
+      state.animals = data;
+      
+      updateUI();
+      updateMap();
+      updateStatus(true);
+      
+    } catch (err) {
+      log(`Stream Error: ${err.message}`, 'error');
+      updateStatus(false);
+    } finally {
+      state.isFetching = false;
     }
   }
 
-  async function fetchDataWithRetry() {
-    if (appState.fetchInProgress) return;
+  function updateUI() {
+    const count = Object.keys(state.animals).length;
+    document.getElementById('animalCount').textContent = count.toString().padStart(2, '0');
+    
+    const zoneSet = new Set(Object.values(state.animals));
+    document.getElementById('zoneCount').textContent = zoneSet.size.toString().padStart(2, '0');
 
-    appState.fetchInProgress = true;
-
-    for (let attempt = 1; attempt <= CONFIG.MAX_RETRIES; attempt++) {
-      try {
-        const result = await fetchWithTimeout(CONFIG.API_ENDPOINT);
-
-        if (!result.success || typeof result.data !== 'object') {
-          throw new Error('Invalid response');
-        }
-
-        appState.animalData = result.data;
-        appState.lastUpdateTime = new Date();
-        appState.retryCount = 0;
-        appState.connected = true;
-
-        Logger.add(`Synced ${Object.keys(result.data).length} animal(s)`, 'success');
-        updateUI(result.data);
-        updateMap(result.data);
-        updateStats(result.data);
-        updateStatusIndicator(true);
-
-        appState.fetchInProgress = false;
-        return;
-
-      } catch (error) {
-        if (attempt < CONFIG.MAX_RETRIES) {
-          Logger.add(`Retry ${attempt}/${CONFIG.MAX_RETRIES-1}`, 'warning');
-          await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY));
-        } else {
-          appState.connected = false;
-          appState.retryCount++;
-          updateStatusIndicator(false);
-          Logger.add(`Connection failed`, 'error');
-        }
-      }
-    }
-
-    appState.fetchInProgress = false;
-  }
-
-  // ==================== UI UPDATES ====================
-  function updateStatusIndicator(connected) {
-    const dot = document.getElementById('statusDot');
-    const text = document.getElementById('statusText');
-
-    if (connected) {
-      dot.classList.add('connected');
-      text.textContent = `Live • ${appState.lastUpdateTime.toLocaleTimeString()}`;
-    } else {
-      dot.classList.remove('connected');
-      text.textContent = 'Offline';
-    }
-  }
-
-  function updateStats(data) {
-    const animals = Object.keys(data);
-    const zonesSet = new Set(Object.values(data));
-
-    document.getElementById('animalCount').textContent = animals.length;
-    document.getElementById('zoneCount').textContent = zonesSet.size;
-  }
-
-  function updateUI(data) {
-    const animalsList = document.getElementById('animalsList');
-
-    if (Object.keys(data).length === 0) {
-      animalsList.innerHTML = '<div class="no-data">No animals tracked</div>';
+    const list = document.getElementById('animalsList');
+    if (count === 0) {
+      list.innerHTML = `<div style="text-align: center; color: var(--text-dim); padding: 40px 0;">NO ENTITIES DETECTED</div>`;
       return;
     }
 
-    animalsList.innerHTML = Object.entries(data)
-      .map(([animal, zone]) => {
-        const timestamp = appState.timestamps[animal] || new Date();
-        appState.timestamps[animal] = timestamp;
-        
-        return `
-          <div class="animal-item">
-            <div class="animal-name">🐾 ${animal}</div>
-            <div class="animal-zone">${zone}</div>
-            <div class="animal-time">${timestamp.toLocaleTimeString()}</div>
-          </div>
-        `;
-      })
-      .join('');
+    list.innerHTML = Object.entries(state.animals).map(([id, zone]) => `
+      <div class="animal-card">
+        <div class="animal-header">
+          <span class="animal-id">🐾 ${id}</span>
+          <span class="animal-loc">${zone.replace('SKICC_', '')}</span>
+        </div>
+        <div class="animal-meta">
+          <span><i class="far fa-clock"></i> LIVE</span>
+          <span><i class="fas fa-signal"></i> SECURE</span>
+        </div>
+      </div>
+    `).join('');
   }
 
-  function updateMap(data) {
-    // Remove markers for animals no longer tracked
-    Object.keys(appState.markers).forEach(animal => {
-      if (!data[animal]) {
-        map.removeLayer(appState.markers[animal]);
-        delete appState.markers[animal];
+  function updateMap() {
+    // Cleanup old markers
+    Object.keys(state.markers).forEach(id => {
+      if (!state.animals[id]) {
+        map.removeLayer(state.markers[id]);
+        delete state.markers[id];
       }
     });
 
-    // Update or create markers
-    Object.entries(data).forEach(([animal, zone]) => {
-      const zoneInfo = zones[zone];
-      if (!zoneInfo) return;
-
-      const coords = zoneInfo.coords;
-
-      if (appState.markers[animal]) {
-        appState.markers[animal].setLatLng(coords);
+    // Sync current markers
+    Object.entries(state.animals).forEach(([id, zone]) => {
+      const coords = CONFIG.ZONES[zone] || CONFIG.ZONES['SKICC_MainHall'];
+      
+      if (state.markers[id]) {
+        state.markers[id].setLatLng(coords);
       } else {
-        // Create custom HTML marker with animal name
-        const markerHtml = `
-          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
-            <div style="background: white; border: 2px solid #dc2626; border-radius: 20px; padding: 4px 10px; font-size: 11px; font-weight: 700; color: #dc2626; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">
-              ${animal}
+        const icon = L.divIcon({
+          className: 'custom-icon',
+          html: `
+            <div class="animal-marker">
+              <div class="marker-label">${id}</div>
+              <div class="marker-pin"></div>
             </div>
-            <div style="width: 14px; height: 14px; border-radius: 50%; background: #dc2626; box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);"></div>
-          </div>
-        `;
+          `,
+          iconSize: [100, 40],
+          iconAnchor: [50, 40]
+        });
 
-        const marker = L.marker(coords, {
-          icon: L.divIcon({
-            html: markerHtml,
-            iconSize: [150, 50],
-            iconAnchor: [75, 50],
-            popupAnchor: [0, -50],
-            className: 'custom-marker'
-          })
-        })
-          .addTo(map)
-          .bindPopup(`<strong>${animal}</strong><br>${zone}`);
-
-        appState.markers[animal] = marker;
+        state.markers[id] = L.marker(coords, { icon }).addTo(map);
       }
     });
+  }
+
+  function updateStatus(live) {
+    const dot = document.getElementById('statusDot');
+    const txt = document.getElementById('statusText');
+    
+    if (live) {
+      dot.className = 'status-dot connected';
+      txt.textContent = 'SYSTEM LIVE';
+    } else {
+      dot.className = 'status-dot';
+      txt.textContent = 'LINK DISRUPTED';
+    }
   }
 
   function manualRefresh() {
-    const btn = document.getElementById('refreshBtn');
-    btn.classList.add('loading');
-    btn.disabled = true;
-    Logger.add('Manual refresh triggered');
-
-    fetchDataWithRetry().then(() => {
-      btn.classList.remove('loading');
-      btn.disabled = false;
-    });
+    log('Forcing manual re-sync...');
+    syncData();
   }
 
-  // ==================== INITIALIZATION ====================
-  Logger.add('SKICC Wildlife Tracker initialized', 'success');
-  
-  fetchDataWithRetry();
+  // Init
+  syncData();
+  setInterval(syncData, CONFIG.FETCH_INTERVAL);
 
-  setInterval(() => {
-    if (!appState.fetchInProgress) {
-      fetchDataWithRetry();
-    }
-  }, CONFIG.FETCH_INTERVAL);
-
-  window.addEventListener('online', () => {
-    Logger.add('Connection restored', 'success');
-    appState.retryCount = 0;
-    fetchDataWithRetry();
-  });
-
-  window.addEventListener('offline', () => {
-    Logger.add('Connection lost', 'error');
-    appState.connected = false;
-    updateStatusIndicator(false);
-  });
+  log('Wildlife Monitoring System Online');
 
 </script>
-
 </body>
-</html>
+</html>

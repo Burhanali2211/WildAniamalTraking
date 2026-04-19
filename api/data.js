@@ -1,6 +1,9 @@
 import { Storage } from './storage.js';
 
-// Persistent global store during runtime
+// Global store to hold animals during runtime
+global.animalStore = global.animalStore || {};
+global.animalTimestamps = global.animalTimestamps || {};
+
 const ANIMAL_TIMEOUT = 10000; // 10 seconds
 
 export default function handler(req, res) {
@@ -10,36 +13,32 @@ export default function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Content-Type', 'application/json');
   
-  // Prevent caching - always return fresh data
+  // Prevent caching
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
 
-  // Handle preflight requests
   if (req.method === 'OPTIONS') {
     res.status(200).end();
     return;
   }
 
-  console.log(`[${new Date().toISOString()}] 📤 ${req.method} request received`);
-
   if (req.method === "GET") {
     try {
-      console.log('🔄 GET /api/data - Fetching animals...');
-      
-      // Use global store to get animals
-      global.animalStore = global.animalStore || {};
-      global.animalTimestamps = global.animalTimestamps || {};
-      
       const now = Date.now();
       const result = {};
       
-      // Clean up stale animals
+      // Sync with global store
+      global.animalStore = global.animalStore || {};
+      global.animalTimestamps = global.animalTimestamps || {};
+      
+      // Cleanup stale animals
       for (const animal in global.animalStore) {
-        const age = now - (global.animalTimestamps[animal] || 0);
+        const timestamp = global.animalTimestamps[animal] || 0;
+        const age = now - timestamp;
         
         if (age > ANIMAL_TIMEOUT) {
-          console.log(`🗑️ Removing stale animal: ${animal} (age: ${Math.floor(age/1000)}s)`);
+          console.log(`🗑️ Expiring stale animal: ${animal} (${Math.floor(age/1000)}s old)`);
           delete global.animalStore[animal];
           delete global.animalTimestamps[animal];
         } else {
@@ -47,25 +46,19 @@ export default function handler(req, res) {
         }
       }
       
-      const animalCount = Object.keys(result).length;
-      console.log(`✅ Returning ${animalCount} active animals:`, result);
+      const count = Object.keys(result).length;
+      console.log(`📤 Sending ${count} active animals`);
 
-      res.status(200).json(result);
+      return res.status(200).json(result);
 
     } catch (error) {
-      console.error('❌ Error sending data:', error.message);
-      res.status(500).json({ 
+      console.error('❌ Data Retrieval Error:', error.message);
+      return res.status(500).json({ 
         error: "Internal server error",
-        message: error.message,
-        timestamp: new Date().toISOString()
+        message: error.message
       });
     }
   } else {
-    console.warn(`⚠️ Method not allowed: ${req.method}`);
-    res.status(405).json({ 
-      error: "Method not allowed",
-      allowed: ["GET"],
-      timestamp: new Date().toISOString()
-    });
+    res.status(405).json({ error: "Method not allowed. Use GET." });
   }
-}
+}

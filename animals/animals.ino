@@ -17,6 +17,14 @@ String serverUrl = "";
 unsigned long lastSend = 0;
 int sendCount = 0;
 
+// Zone mapping based on RSSI (Signal Strength)
+String mapRSSIToZone(int rssi) {
+  if (rssi > -60) return "SKICC_MainHall";
+  if (rssi > -70) return "SKICC_NorthLawn";
+  if (rssi > -80) return "SKICC_GateArea";
+  return "SKICC_Perimeter";
+}
+
 void setup() {
   Serial.begin(115200);
   delay(100);
@@ -66,28 +74,32 @@ void sendLocationToServer() {
     return;
   }
 
+  int rssi = WiFi.RSSI();
+  String zone = mapRSSIToZone(rssi);
+
   WiFiClient client;
   HTTPClient http;
 
-  // Create JSON data
-  String jsonData = "{\"animal\":\"" + String(DEVICE_NAME) + "\",\"zone\":\"SKICC_MainHall\"}";
+  // Create JSON data with dynamic zone
+  String jsonData = "{\"animal\":\"" + String(DEVICE_NAME) + "\",\"zone\":\"" + zone + "\"}";
 
   Serial.print("[");
   Serial.print(millis() / 1000);
-  Serial.print("s] ");
+  Serial.print("s] (RSSI: ");
+  Serial.print(rssi);
+  Serial.print(") 📍 ");
+  Serial.print(zone);
+  Serial.print(" | ");
 
-  // Set timeout to 5 seconds (5000ms)
+  // Set timeout to 5 seconds
   http.setTimeout(5000);
-  http.setConnectTimeout(5000);
 
   if (http.begin(client, serverUrl)) {
     http.addHeader("Content-Type", "application/json");
     
     int httpResponseCode = http.POST(jsonData);
 
-    Serial.print("📡 Sent: ");
-    Serial.print(DEVICE_NAME);
-    Serial.print(" | Response: ");
+    Serial.print("Response: ");
     Serial.print(httpResponseCode);
 
     if (httpResponseCode == 200) {
@@ -96,14 +108,14 @@ void sendLocationToServer() {
     } else if (httpResponseCode > 0) {
       Serial.println(" ❌ (HTTP Error)");
     } else {
-      Serial.print(" ❌ (Connection Error: ");
+      Serial.print(" ❌ (Error code: ");
       Serial.print(httpResponseCode);
       Serial.println(")");
     }
 
     http.end();
   } else {
-    Serial.println("❌ Failed to connect to server");
+    Serial.println("❌ Connection failed");
   }
 }
 
