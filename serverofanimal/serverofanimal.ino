@@ -18,6 +18,9 @@ typedef struct {
 unsigned long lastServerUpdate = 0;
 const unsigned long MIN_UPDATE_INTERVAL = 1000; // Minimum 1 second between updates
 
+// Broadcast MAC address for receiving from unknown peers
+uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
 // ================= RSSI TO ZONE MAPPING =================
 String getZoneFromRSSI(int rssi) {
   if (rssi > -50) return "SKICC_MainHall";
@@ -132,12 +135,27 @@ void setup() {
   
   Serial.println("✅ ESP-NOW Initialized");
   esp_now_register_recv_cb(OnDataRecv);
+  
+  // Register broadcast address as a peer to receive from unknown senders
+  esp_now_peer_info_t peerInfo = {};
+  memcpy(&peerInfo.peer_addr, broadcastAddress, 6);
+  peerInfo.channel = 0;  // Listen on all channels
+  peerInfo.encrypt = false;
+  
+  if (esp_now_add_peer(&peerInfo) != ESP_OK) {
+    Serial.println("⚠️ Failed to add broadcast peer (might already exist)");
+  } else {
+    Serial.println("✅ Broadcast peer registered");
+  }
+  
   delay(100);
   
   // Now connect to WiFi for API communication
   Serial.print("📡 Connecting to WiFi: ");
   Serial.println(ssid);
   
+  WiFi.setAutoConnect(true);
+  WiFi.setAutoReconnect(true);
   WiFi.begin(ssid, password);
   
   int attempts = 0;
