@@ -7,59 +7,24 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
   <style>
-    body {
-      font-family: Arial;
-      margin: 0;
-      background: #0f172a;
-      color: white;
-    }
-
-    h1 {
-      text-align: center;
-      padding: 10px;
-    }
-
-    #map {
-      height: 50vh;
-      margin: 10px;
-      border-radius: 10px;
-    }
-
-    table {
-      width: 90%;
-      margin: 10px auto;
-      border-collapse: collapse;
-    }
-
-    th, td {
-      padding: 10px;
-      border-bottom: 1px solid #444;
-      text-align: center;
-    }
-
-    th {
-      background: #1e293b;
-    }
-
-    .zone {
-      color: #38bdf8;
-      font-weight: bold;
-    }
+    body { font-family: Arial; background: #0f172a; color: white; margin: 0; }
+    h1 { text-align: center; padding: 10px; }
+    #map { height: 50vh; margin: 10px; border-radius: 10px; }
+    table { width: 90%; margin: 10px auto; border-collapse: collapse; }
+    th, td { padding: 10px; border-bottom: 1px solid #444; text-align: center; }
+    th { background: #1e293b; }
+    .zone { color: #38bdf8; font-weight: bold; }
   </style>
 </head>
 
 <body>
 
 <h1>Wildlife Monitoring Dashboard</h1>
-
 <div id="map"></div>
 
 <table>
   <thead>
-    <tr>
-      <th>Animal</th>
-      <th>Zone</th>
-    </tr>
+    <tr><th>Animal</th><th>Zone</th></tr>
   </thead>
   <tbody id="tableBody"></tbody>
 </table>
@@ -67,7 +32,6 @@
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
-  // 🔥 Define fixed zones with coordinates
   const zones = {
     "Forest_North": [33.12, 74.56],
     "Forest_South": [33.05, 74.60],
@@ -76,23 +40,24 @@
   };
 
   const map = L.map('map').setView([33.1, 74.55], 11);
-
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: "Map"
-  }).addTo(map);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
   let markers = {};
 
   async function fetchData() {
     try {
-      const res = await fetch("https://your-api.vercel.app/data"); // 🔥 CHANGE THIS
+      console.log("📡 Fetching data...");
+
+      const res = await fetch("/api/data");
       const data = await res.json();
+
+      console.log("✅ Data received:", data);
 
       updateTable(data);
       updateMap(data);
 
     } catch (err) {
-      console.log("Error:", err);
+      console.error("❌ Fetch error:", err);
     }
   }
 
@@ -101,13 +66,14 @@
     table.innerHTML = "";
 
     for (let animal in data) {
-      const row = `
+      console.log(`📊 Table update → ${animal}: ${data[animal]}`);
+
+      table.innerHTML += `
         <tr>
           <td>${animal}</td>
           <td class="zone">${data[animal]}</td>
         </tr>
       `;
-      table.innerHTML += row;
     }
   }
 
@@ -116,7 +82,10 @@
       const zone = data[animal];
       const coords = zones[zone];
 
-      if (!coords) continue;
+      if (!coords) {
+        console.warn("⚠ Unknown zone:", zone);
+        continue;
+      }
 
       if (markers[animal]) {
         markers[animal].setLatLng(coords);
@@ -125,12 +94,12 @@
           .addTo(map)
           .bindPopup(animal + " → " + zone);
       }
+
+      console.log(`🗺 Marker updated → ${animal} @ ${zone}`);
     }
   }
 
-  // 🔁 Refresh every 5 seconds
   setInterval(fetchData, 5000);
-
   fetchData();
 </script>
 
