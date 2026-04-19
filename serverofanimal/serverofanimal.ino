@@ -6,6 +6,9 @@ const char* ssid = "Faheem";
 const char* password = "12345678";
 const char* serverUrl = "https://wild-aniamal-traking.vercel.app/api/update";
 
+// ⚠️ DEBUG MODE: Set to true to disable WiFi and test ESP-NOW communication only
+#define ESPNOW_TEST_MODE false
+
 #define BUZZER 5
 #define SWITCH 0
 #define SEND_TIMEOUT 30000  // 30 seconds max for HTTP request
@@ -32,6 +35,10 @@ String getZoneFromRSSI(int rssi) {
 
 // ================= SEND TO SERVER WITH RETRY =================
 bool sendToServer(String name, int rssi) {
+  if (ESPNOW_TEST_MODE) {
+    return false;  // Don't send to server in test mode
+  }
+  
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("❌ WiFi not connected");
     return false;
@@ -145,39 +152,43 @@ void setup() {
   if (esp_now_add_peer(&peerInfo) != ESP_OK) {
     Serial.println("⚠️ Failed to add broadcast peer (might already exist)");
   } else {
-    Serial.println("✅ Broadcast peer registered on channel 1");
+    Serial.println("✅ Broadcast peer registered (auto-channel)");
   }
   
   delay(100);
   
-  // Now connect to WiFi for API communication
-  Serial.print("📡 Connecting to WiFi: ");
-  Serial.println(ssid);
-  
-  // 🔴 CRITICAL: Force WiFi to channel 1 (match animal device)
-  WiFi.setAutoReconnect(true);
-  WiFi.setScanMethod(WIFI_FAST_SCAN);
-  WiFi.begin(ssid, password);
-  
-  int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
-    delay(500);
-    Serial.print(".");
-    attempts++;
-  }
-
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\n✅ WiFi Connected");
-    Serial.print("IP: ");
-    Serial.println(WiFi.localIP());
-    
-    // Debug: Show WiFi channel
-    uint8_t channel = WiFi.channel();
-    Serial.print("📶 WiFi Channel: ");
-    Serial.print(channel);
-    Serial.println(" (ESP-NOW should work across channels)");
+  // Now connect to WiFi for API communication (skip if testing ESP-NOW only)
+  if (ESPNOW_TEST_MODE) {
+    Serial.println("🧪 TEST MODE: WiFi disabled for pure ESP-NOW testing");
+    Serial.println("   (Set ESPNOW_TEST_MODE to false to enable WiFi)");
   } else {
-    Serial.println("\n⚠️ WiFi Connection Failed - ESP-NOW Still Active");
+    Serial.print("📡 Connecting to WiFi: ");
+    Serial.println(ssid);
+
+    WiFi.setAutoReconnect(true);
+    WiFi.setScanMethod(WIFI_FAST_SCAN);
+    WiFi.begin(ssid, password);
+    
+    int attempts = 0;
+    while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+      delay(500);
+      Serial.print(".");
+      attempts++;
+    }
+
+    if (WiFi.status() == WL_CONNECTED) {
+      Serial.println("\n✅ WiFi Connected");
+      Serial.print("IP: ");
+      Serial.println(WiFi.localIP());
+      
+      // Debug: Show WiFi channel
+      uint8_t channel = WiFi.channel();
+      Serial.print("📶 WiFi Channel: ");
+      Serial.print(channel);
+      Serial.println(" (ESP-NOW should work across channels)");
+    } else {
+      Serial.println("\n⚠️ WiFi Connection Failed - ESP-NOW Still Active");
+    }
   }
 
   Serial.println("📍 Waiting for animals...");
