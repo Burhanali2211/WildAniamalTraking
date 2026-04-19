@@ -32,10 +32,6 @@ void setup() {
   // Set WiFi mode first
   WiFi.mode(WIFI_STA);
   
-  // Print our own MAC address
-  Serial.print("📍 My MAC Address: ");
-  Serial.println(WiFi.macAddress());
-  
   // Set to channel 1 (MUST match server channel)
   wifi_set_channel(1);
   delay(100);

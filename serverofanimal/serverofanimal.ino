@@ -96,21 +96,13 @@ void OnDataRecv(const esp_now_recv_info *info, const uint8_t *incomingData, int 
   String name = String(msg.name);
   int rssi = info->rx_ctrl->rssi;
 
-  // Debug: Print sender MAC address
   Serial.println("");
-  Serial.print("📡 Frame from MAC: ");
-  for (int i = 0; i < 6; i++) {
-    if (info->src_addr[i] < 16) Serial.print("0");
-    Serial.print(info->src_addr[i], HEX);
-    if (i < 5) Serial.print(":");
-  }
-  Serial.println("");
-
-  Serial.print("🐾 Received: ");
+  Serial.print("✅ ESP-NOW RECEIVED!");
+  Serial.print(" | Animal: ");
   Serial.print(name);
   Serial.print(" | RSSI: ");
   Serial.print(rssi);
-  Serial.print(" | Length: ");
+  Serial.print(" | Data Length: ");
   Serial.println(len);
 
   // 🔊 Buzzer alert
@@ -145,8 +137,8 @@ void setup() {
   WiFi.mode(WIFI_STA);
   delay(100);
   
-  // Print server MAC address
-  Serial.print("📍 My MAC Address: ");
+  // Print server info (will have IP after WiFi connects)
+  Serial.print("📍 Server MAC: ");
   Serial.println(WiFi.macAddress());
 
   // Initialize ESP-NOW BEFORE WiFi connection
@@ -183,7 +175,7 @@ void setup() {
 
     if (WiFi.status() == WL_CONNECTED) {
       Serial.println("\n✅ WiFi Connected");
-      Serial.print("IP: ");
+      Serial.print("🌐 Server IP: ");
       Serial.println(WiFi.localIP());
       
       // Debug: Show WiFi channel
