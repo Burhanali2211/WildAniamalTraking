@@ -479,16 +479,26 @@
       const response = await fetch(url, {
         signal: controller.signal,
         method: 'GET',
-        headers: { 'Accept': 'application/json' }
+        headers: { 
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
       });
 
       clearTimeout(timeoutId);
+
+      // Handle 304 Not Modified by returning empty data
+      if (response.status === 304) {
+        console.log('🔄 Server returned 304 Not Modified (no changes)');
+        return { success: true, data: {} };
+      }
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
 
       const data = await response.json();
+      console.log('✅ API Response:', data);
       return { success: true, data };
     } catch (error) {
       clearTimeout(timeoutId);
