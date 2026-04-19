@@ -27,29 +27,16 @@ export default function handler(req, res) {
     try {
       let { animal, zone } = req.body;
 
-      // Log raw request for debugging
-      console.log(`[${new Date().toISOString()}] 📥 POST Data:`, req.body);
-
-      // Validate input
       if (!animal || !zone) {
-        console.error('❌ Missing fields. Body was:', req.body);
-        return res.status(400).json({ 
-          error: "Missing fields: animal and zone",
-          received: req.body,
-          timestamp: new Date().toISOString()
-        });
+        return res.status(400).json({ error: "Missing animal or zone in body" });
       }
 
       // Cleanup and normalize
       animal = String(animal).trim();
       zone = String(zone).trim();
 
-      // Store in global object
-      global.animalStore[animal] = zone;
-      global.animalTimestamps[animal] = Date.now();
-
-      // Also update via Storage module for redundancy
-      Storage.set(animal, zone);
+      // Store in Redis (or memory fallback)
+      await Storage.set(animal, zone);
 
       console.log(`✅ Update Successful: ${animal} @ ${zone}`);
 
